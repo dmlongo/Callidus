@@ -3,7 +3,7 @@ graph [
   directed 0
 
   node [
-    id 15
+    id 21
     label "{E1} {x, y}"
     vgj [
       labelPosition "in"
@@ -12,7 +12,7 @@ graph [
   ]
 
   node [
-    id 10
+    id 16
     label "{E1, E2} {x, y, z}"
     vgj [
       labelPosition "in"
@@ -21,7 +21,7 @@ graph [
   ]
 
   node [
-    id 11
+    id 17
     label "{E1, E4} {x, y, k}"
     vgj [
       labelPosition "in"
@@ -30,13 +30,13 @@ graph [
   ]
 
   edge [
-    source 15
-    target 10
+    source 21
+    target 16
   ]
 
   edge [
-    source 15
-    target 11
+    source 21
+    target 17
   ]
 
 
