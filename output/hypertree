@@ -1,0 +1,43 @@
+graph [
+
+  directed 0
+
+  node [
+    id 15
+    label "{E1} {x, y}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 10
+    label "{E1, E2} {x, y, z}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 11
+    label "{E1, E4} {x, y, k}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  edge [
+    source 15
+    target 10
+  ]
+
+  edge [
+    source 15
+    target 11
+  ]
+
+
+]
