@@ -1,6 +1,7 @@
 package main
 
 import (
+	. "../CSP_Project/hyperTree"
 	"bufio"
 	"fmt"
 	"os"
@@ -9,24 +10,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-//TODO: refactor
-
-type Node struct {
-	id        int
-	joinNodes []string
-	variables []string
-	father    *Node
-	sons      []*Node
-}
-
-func (node *Node) addSon(node2 *Node) {
-	node.sons = append(node.sons, node2)
-}
-
-func (node *Node) addFather(node2 *Node) {
-	node.father = node2
-}
 
 func main() {
 	filePath := "3col.xml"
@@ -74,7 +57,7 @@ func getHyperTree() {
 			res = reg.FindStringSubmatch(line)
 			joinNodes := strings.Split(res[1], ", ")
 			variables := strings.Split(res[2], ", ")
-			node := Node{id, joinNodes, variables, nil, nil}
+			node := Node{Id: id, JoinNodes: joinNodes, Variables: variables}
 			nodes[id] = &node
 		} else if strings.Contains(line, "edge") {
 			scanner.Scan()
@@ -87,8 +70,8 @@ func getHyperTree() {
 			reg = regexp.MustCompile("target (.*).*")
 			res = reg.FindStringSubmatch(line)
 			target, _ := strconv.Atoi(res[1])
-			nodes[source].addSon(nodes[target])
-			nodes[target].addFather(nodes[source])
+			nodes[source].AddSon(nodes[target])
+			nodes[target].AddFather(nodes[source])
 		}
 	}
 	for a := range nodes {
