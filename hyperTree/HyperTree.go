@@ -2,7 +2,7 @@ package hyperTree
 
 type Node struct {
 	Id             int
-	JoinNodes      []string
+	JoinNodes      []string //TODO: eliminare?
 	Variables      []string
 	Father         *Node
 	Sons           []*Node
