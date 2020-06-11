@@ -2,47 +2,123 @@ package computation
 
 import (
 	. "../../CSP_Project/hyperTree"
+	"sync"
 )
 
-func SequentialYannakaki(root *Node) {
-	if len(root.Sons) != 0 {
-		bottomUp(root)
-		topDown(root)
-	}
+type IdJoiningIndex struct {
+	x int
+	y int
 }
 
-func bottomUp(actual *Node) {
+type MyMap struct {
+	hash map[IdJoiningIndex][][]int
+	lock *sync.Mutex
+}
+
+func delByIndex(index int, slice [][]int) [][]int {
+	slice = append(slice[:index], slice[index+1:]...)
+	return slice
+}
+
+//TODO: forse sequential e parallel possono essere accorpati in caso dovremo utilizzarli parecchio
+func SequentialYannakaki(root *Node) *Node {
+	joiningIndex := &MyMap{}
+	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
+	joiningIndex.lock = &sync.Mutex{}
+	if len(root.Sons) != 0 {
+		sequentialBottomUp(root, joiningIndex)
+		sequentialTopDown(root, joiningIndex)
+	}
+	return root
+}
+
+func sequentialBottomUp(actual *Node, joiningIndex *MyMap) {
 	for _, son := range actual.Sons {
-		bottomUp(son)
+		sequentialBottomUp(son, joiningIndex)
 	}
 	if actual.Father != nil {
-		doSemiJoin(actual, actual.Father)
+		doSemiJoin(actual, actual.Father, joiningIndex)
 	}
 }
 
-func topDown(actual *Node) {
+func sequentialTopDown(actual *Node, joiningIndex *MyMap) {
 	for _, son := range actual.Sons {
-		doSemiJoin(actual, son)
-		topDown(son)
+		doSemiJoin(actual, son, joiningIndex)
+		sequentialTopDown(son, joiningIndex)
 	}
+}
+
+func ParallelYannakaki(root *Node) *Node {
+	joiningIndex := &MyMap{}
+	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
+	joiningIndex.lock = &sync.Mutex{}
+	if len(root.Sons) != 0 {
+		parallelBottomUp(root, joiningIndex)
+		parallelTopDown(root, joiningIndex)
+	}
+	return root
+}
+
+func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
+	var wg sync.WaitGroup
+	for _, son := range actual.Sons {
+		s := son
+		if len(son.Sons) != 0 {
+			wg.Add(1)
+			go func() {
+				parallelBottomUp(s, joiningIndex)
+				wg.Done()
+			}()
+		} else {
+			parallelBottomUp(son, joiningIndex)
+		}
+	}
+	wg.Wait()
+	if actual.Father != nil {
+		doSemiJoin(actual, actual.Father, joiningIndex)
+	}
+}
+
+func parallelTopDown(actual *Node, joiningIndex *MyMap) {
+	var wg sync.WaitGroup
+	wg.Add(len(actual.Sons))
+	for _, son := range actual.Sons {
+		doSemiJoin(actual, son, joiningIndex)
+		s := son
+		go func() {
+			sequentialTopDown(s, joiningIndex)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 // the left node performs the semi join on the right node and update the right's table
-func doSemiJoin(left *Node, right *Node) {
-	joiningIndex := make([][]int, 0) //TODO: migliorare il calcolo degli indici
-	for iLeft, varLeft := range left.Variables {
-		for iRight, varRight := range right.Variables {
-			if varLeft == varRight {
-				joiningIndex = append(joiningIndex, []int{iLeft, iRight})
-				break
+//TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
+func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap) {
+	indexJoin := make([][]int, 0)
+	if val, ok := joiningIndex.hash[IdJoiningIndex{x: left.Id, y: right.Id}]; ok {
+		indexJoin = val
+	} else {
+		invertedIndex := make([][]int, 0)
+		for iLeft, varLeft := range left.Variables {
+			for iRight, varRight := range right.Variables {
+				if varLeft == varRight {
+					invertedIndex = append(invertedIndex, []int{iRight, iLeft})
+					indexJoin = append(indexJoin, []int{iLeft, iRight})
+					break
+				}
 			}
 		}
+		joiningIndex.lock.Lock()
+		joiningIndex.hash[IdJoiningIndex{x: right.Id, y: left.Id}] = invertedIndex
+		joiningIndex.lock.Unlock()
 	}
 	trashRow := make([]bool, len(right.PossibleValues)) //false at beginning
 	for index, valuesRight := range right.PossibleValues {
 		for _, valuesLeft := range left.PossibleValues {
 			tupleMatch := true
-			for _, rowIndex := range joiningIndex {
+			for _, rowIndex := range indexJoin {
 				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
 					tupleMatch = false
 					break
@@ -59,9 +135,4 @@ func doSemiJoin(left *Node, right *Node) {
 			right.PossibleValues = delByIndex(i, right.PossibleValues)
 		}
 	}
-}
-
-func delByIndex(index int, slice [][]int) [][]int {
-	slice = append(slice[:index], slice[index+1:]...)
-	return slice
 }
