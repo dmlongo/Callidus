@@ -67,7 +67,6 @@ func GetHyperTree() (*Node, []*Node) {
 			res = reg.FindStringSubmatch(line)
 			target, _ := strconv.Atoi(res[1])
 			nodes[source].AddSon(nodes[target])
-			nodes[target].AddFather(nodes[source])
 		}
 	}
 	var root *Node

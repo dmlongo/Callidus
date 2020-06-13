@@ -5,12 +5,17 @@ import (
 	. "../CSP_Project/constraint"
 	. "../CSP_Project/hyperTree"
 	. "../CSP_Project/pre-processing"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 func main() {
+
+	start := time.Now()
+
 	filePath := os.Args[1]
 	if !strings.HasSuffix(filePath, ".xml") {
 		panic("File must be an xml")
@@ -48,5 +53,9 @@ func main() {
 	AttachPossibleSolutions(nodes)
 	//fmt.Println(time.Since(start))
 
-	SequentialYannakaki(root)
+	ParallelYannakaki(root)
+	fmt.Println(time.Since(start))
+	/*for _, node := range nodes {
+		fmt.Println(node)
+	}*/
 }

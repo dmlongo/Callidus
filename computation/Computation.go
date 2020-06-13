@@ -20,7 +20,7 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 	wg := &sync.WaitGroup{}
 	wg.Add(len(nodes))
 	for _, node := range nodes {
-		go createAndSolveSubCSP(node, domains, constraints, wg)
+		go createAndSolveSubCSP(node, domains, constraints, wg) //TODO: gestire possibile overhead
 	}
 	wg.Wait()
 }
