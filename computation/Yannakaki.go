@@ -12,7 +12,7 @@ type IdJoiningIndex struct {
 
 type MyMap struct {
 	hash map[IdJoiningIndex][][]int
-	lock *sync.Mutex
+	lock *sync.RWMutex
 }
 
 func delByIndex(index int, slice [][]int) [][]int {
@@ -51,7 +51,7 @@ func sequentialTopDown(actual *Node, joiningIndex *MyMap) {
 func ParallelYannakaki(root *Node) *Node {
 	joiningIndex := &MyMap{}
 	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
-	joiningIndex.lock = &sync.Mutex{}
+	joiningIndex.lock = &sync.RWMutex{}
 	if len(root.Sons) != 0 {
 		parallelBottomUp(root, joiningIndex)
 		parallelTopDown(root, joiningIndex)
@@ -70,7 +70,7 @@ func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
 				wg.Done()
 			}()
 		} else {
-			parallelBottomUp(son, joiningIndex)
+			parallelBottomUp(s, joiningIndex)
 		}
 	}
 	wg.Wait()
@@ -86,7 +86,7 @@ func parallelTopDown(actual *Node, joiningIndex *MyMap) {
 		doSemiJoin(actual, son, joiningIndex)
 		s := son
 		go func() {
-			sequentialTopDown(s, joiningIndex)
+			parallelTopDown(s, joiningIndex)
 			wg.Done()
 		}()
 	}
@@ -97,7 +97,10 @@ func parallelTopDown(actual *Node, joiningIndex *MyMap) {
 //TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
 func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap) {
 	indexJoin := make([][]int, 0)
-	if val, ok := joiningIndex.hash[IdJoiningIndex{x: left.Id, y: right.Id}]; ok {
+	joiningIndex.lock.RLock()
+	val, ok := joiningIndex.hash[IdJoiningIndex{x: left.Id, y: right.Id}]
+	joiningIndex.lock.RUnlock()
+	if ok {
 		indexJoin = val
 	} else {
 		invertedIndex := make([][]int, 0)

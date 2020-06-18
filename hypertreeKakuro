@@ -1,0 +1,854 @@
+graph [
+
+  directed 0
+
+  node [
+    id 1
+    label "{E71, E23}    {xL5JL2J, xL5JL3J, xL5JL1J, xL6JL1J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 2
+    label "{E23, E10}    {xL6JL2J, xL5JL2J, xL5JL3J, xL6JL1J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 3
+    label "{E23, E53}    {xL1JL2J, xL6JL2J, xL3JL2J, xL2JL2J, xL5JL2J, xL5JL3J, xL4JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 4
+    label "{E69, E53}    {xL1JL2J, xL3JL2J, xL2JL2J, xL4JL3J, xL5JL3J, xL4JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 5
+    label "{E21, E53}    {xL1JL2J, xL3JL2J, xL2JL2J, xL4JL3J, xL4JL4J, xL4JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 6
+    label "{E57, E53}    {xL1JL2J, xL3JL2J, xL2JL2J, xL4JL4J, xL3JL4J, xL2JL4J, xL1JL4J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 7
+    label "{E57, E53, E6}    {xL2JL3J, xL2JL1J, xL2JL5J, xL1JL2J, xL3JL2J, xL2JL2J, xL3JL4J, xL2JL4J, xL1JL4J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 8
+    label "{E57, E53, E6, E1}    {xL1JL1J, xL1JL3J, xL2JL3J, xL2JL1J, xL2JL5J, xL1JL5J, xL1JL2J, xL3JL2J, xL3JL4J, xL1JL4J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 9
+    label "{E8, E51}    {xL1JL1J, xL3JL1J, xL2JL1J, xL3JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 10
+    label "{E52, E13}    {xL2JL5J, xL1JL5J, xL3JL5J, xL3JL7J, xL3JL6J, xL3JL4J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 11
+    label "{E68, E13}    {xL3JL7J, xL6JL6J, xL5JL6J, xL4JL6J, xL3JL6J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 12
+    label "{E59, E68}    {xL3JL7J, xL4JL7J, xL2JL7J, xL1JL7J, xL6JL6J, xL5JL6J, xL4JL6J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 13
+    label "{E16, E59, E68}    {xL5JL5J, xL2JL7J, xL1JL7J, xL6JL6J, xL5JL6J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 14
+    label "{E72, E24, E59}    {xL5JL5J, xL6JL5J, xL2JL7J, xL1JL7J, xL6JL4J, xL6JL6J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 15
+    label "{E76, E59}    {xL7JL4J, xL2JL7J, xL1JL7J, xL6JL4J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 16
+    label "{E11, E59}    {xL7JL3J, xL7JL4J, xL2JL7J, xL1JL7J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 17
+    label "{E59, E73}    {xL7JL3J, xL2JL7J, xL1JL7J, xL8JL3J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 18
+    label "{E17, E59}    {xL2JL7J, xL1JL7J, xL8JL2J, xL8JL3J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 19
+    label "{E82, E59}    {xL11JL2J, xL2JL7J, xL1JL7J, xL10JL2J, xL8JL2J, xL9JL2J, xL13JL2J, xL12JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 20
+    label "{E35, E86, E30}    {xL9JL1J, xL10JL1J, xL10JL2J, xL9JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 21
+    label "{E82, E59, E2}    {xL13JL4J, xL13JL1J, xL11JL2J, xL2JL7J, xL1JL7J, xL13JL5J, xL13JL3J, xL13JL2J, xL12JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 22
+    label "{E82, E59, E2, E92}    {xL13JL4J, xL15JL4J, xL13JL1J, xL14JL4J, xL11JL2J, xL2JL7J, xL1JL7J, xL13JL5J, xL13JL3J, xL12JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 23
+    label "{E82, E59, E14, E2, E92}    {xL15JL4J, xL15JL1J, xL13JL1J, xL14JL4J, xL11JL2J, xL2JL7J, xL1JL7J, xL13JL5J, xL15JL3J, xL13JL3J, xL15JL2J, xL12JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 24
+    label "{E44, E82, E59, E14, E2}    {xL15JL1J, xL13JL1J, xL14JL4J, xL11JL2J, xL2JL7J, xL1JL7J, xL13JL5J, xL15JL3J, xL13JL3J, xL14JL3J, xL15JL2J, xL12JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 25
+    label "{E82, E91, E59, E14, E2}    {xL15JL1J, xL13JL1J, xL11JL3J, xL11JL2J, xL2JL7J, xL1JL7J, xL13JL5J, xL15JL3J, xL12JL3J, xL13JL3J, xL14JL3J, xL15JL2J, xL12JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 26
+    label "{E59, E37, E83, E14}    {xL15JL1J, xL11JL4J, xL11JL3J, xL11JL2J, xL11JL6J, xL11JL7J, xL10JL5J, xL8JL5J, xL2JL7J, xL1JL7J, xL11JL5J, xL12JL5J, xL9JL5J, xL13JL5J, xL15JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 27
+    label "{E59, E37, E83, E90, E14}    {xL15JL1J, xL11JL6J, xL11JL7J, xL8JL5J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J, xL15JL2J, xL16JL1J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 28
+    label "{E39, E96, E59, E37, E83}    {xL11JL6J, xL11JL7J, xL8JL5J, xL19JL2J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J, xL15JL2J, xL18JL2J, xL17JL2J, xL16JL2J, xL16JL1J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 29
+    label "{E96, E59, E37, E83, E45}    {xL17JL3J, xL11JL6J, xL11JL7J, xL8JL5J, xL19JL2J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J, xL18JL2J, xL17JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 30
+    label "{E96, E59, E37, E83, E98}    {xL18JL3J, xL17JL3J, xL11JL6J, xL11JL7J, xL8JL5J, xL19JL3J, xL19JL2J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J, xL18JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 31
+    label "{E59, E3, E37, E83, E49}    {xL18JL3J, xL18JL4J, xL18JL1J, xL11JL6J, xL11JL7J, xL8JL5J, xL19JL1J, xL19JL5J, xL19JL4J, xL19JL3J, xL19JL2J, xL2JL7J, xL1JL7J, xL18JL5J, xL12JL5J, xL9JL5J, xL18JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 32
+    label "{E59, E37, E58, E83}    {xL11JL6J, xL11JL7J, xL8JL5J, xL19JL5J, xL2JL7J, xL1JL7J, xL17JL5J, xL16JL5J, xL18JL5J, xL12JL5J, xL9JL5J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 33
+    label "{E59, E37, E58, E83, E48}    {xL17JL8J, xL17JL6J, xL17JL7J, xL11JL6J, xL11JL7J, xL8JL5J, xL2JL7J, xL1JL7J, xL17JL5J, xL16JL5J, xL12JL5J, xL9JL5J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 34
+    label "{E59, E37, E83, E33, E95}    {xL16JL6J, xL14JL6J, xL17JL6J, xL11JL6J, xL11JL7J, xL8JL5J, xL2JL7J, xL1JL7J, xL16JL5J, xL12JL5J, xL9JL5J, xL15JL6J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 35
+    label "{E59, E37, E83, E46, E95}    {xL14JL6J, xL11JL6J, xL11JL7J, xL8JL5J, xL14JL8J, xL14JL7J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J, xL15JL6J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 36
+    label "{E93, E59, E37, E83}    {xL11JL6J, xL11JL7J, xL8JL5J, xL14JL8J, xL13JL8J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 37
+    label "{E59, E19, E37, E83}    {xL11JL6J, xL11JL7J, xL13JL9J, xL8JL5J, xL13JL8J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 38
+    label "{E85, E59, E37, E83}    {xL11JL6J, xL11JL7J, xL13JL9J, xL8JL5J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J, xL12JL9J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 39
+    label "{E43, E59, E37, E83}    {xL11JL6J, xL11JL7J, xL8JL5J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J, xL12JL9J, xL12JL10J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 40
+    label "{E59, E37, E83, E80}    {xL9JL10J, xL11JL10J, xL11JL6J, xL11JL7J, xL8JL5J, xL10JL10J, xL8JL10J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J, xL7JL10J, xL12JL10J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 41
+    label "{E59, E37, E83, E79, E80}    {xL9JL10J, xL9JL7J, xL10JL7J, xL12JL7J, xL11JL6J, xL11JL7J, xL8JL7J, xL8JL5J, xL8JL10J, xL2JL7J, xL1JL7J, xL12JL5J, xL9JL5J, xL7JL7J, xL7JL10J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 42
+    label "{E28, E59, E79, E80, E34}    {xL9JL6J, xL9JL8J, xL9JL10J, xL9JL7J, xL10JL7J, xL9JL9J, xL8JL7J, xL8JL5J, xL8JL6J, xL8JL10J, xL2JL7J, xL1JL7J, xL9JL5J, xL7JL7J, xL7JL10J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 43
+    label "{E27, E59, E75, E80}    {xL6JL9J, xL9JL9J, xL7JL9J, xL5JL9J, xL7JL11J, xL8JL9J, xL8JL10J, xL2JL7J, xL1JL7J, xL7JL7J, xL7JL8J, xL7JL10J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 44
+    label "{E74, E59, E75}    {xL6JL9J, xL5JL9J, xL2JL7J, xL1JL7J, xL7JL8J, xL6JL8J, xL5JL8J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 45
+    label "{E25, E59}    {xL5JL10J, xL5JL9J, xL2JL7J, xL1JL7J, xL5JL11J, xL5JL8J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 46
+    label "{E25, E63, E59}    {xL1JL10J, xL4JL10J, xL5JL10J, xL2JL10J, xL3JL10J, xL2JL7J, xL1JL7J, xL5JL11J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 47
+    label "{E63, E5, E7}    {xL1JL11J, xL2JL11J, xL1JL8J, xL2JL8J, xL2JL9J, xL1JL9J, xL1JL10J, xL2JL10J, xL3JL10J, xL2JL7J, xL1JL7J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 48
+    label "{E62, E15}    {xL2JL9J, xL1JL9J, xL3JL10J, xL3JL9J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 49
+    label "{E70, E22}    {xL4JL10J, xL4JL11J, xL5JL11J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 50
+    label "{E29, E81}    {xL7JL11J, xL8JL9J, xL8JL11J, xL8JL10J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 51
+    label "{E36, E61}    {xL9JL8J, xL10JL8J, xL10JL7J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 52
+    label "{E41, E88}    {xL12JL6J, xL12JL7J, xL11JL6J, xL12JL5J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 53
+    label "{E31, E38, E89}    {xL11JL11J, xL11JL10J, xL10JL10J, xL10JL11J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 54
+    label "{E32, E66}    {xL14JL7J, xL15JL7J, xL15JL6J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 55
+    label "{E48, E97}    {xL19JL8J, xL18JL8J, xL17JL8J, xL17JL7J, xL16JL8J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 56
+    label "{E99, E97}    {xL19JL8J, xL18JL8J, xL17JL7J, xL18JL7J, xL19JL7J, xL16JL8J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 57
+    label "{E50, E4, E97}    {xL19JL8J, xL18JL8J, xL18JL7J, xL19JL7J, xL19JL9J, xL18JL9J, xL19JL10J, xL18JL10J, xL18JL11J, xL19JL11J, xL16JL8J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 58
+    label "{E42, E54, E100}    {xL16JL9J, xL19JL10J, xL16JL10J, xL18JL10J, xL15JL10J, xL14JL10J, xL17JL10J, xL18JL11J, xL19JL11J, xL17JL11J, xL16JL8J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 59
+    label "{E20, E94, E47, E77}    {xL15JL11J, xL15JL9J, xL16JL9J, xL15JL10J, xL14JL10J, xL14JL11J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 60
+    label "{E18, E87}    {xL11JL4J, xL10JL4J, xL10JL5J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  node [
+    id 61
+    label "{E65, E40}    {xL12JL1J, xL13JL1J, xL12JL3J, xL12JL2J}"
+    vgj [
+      labelPosition "in"
+      shape "Rectangle"
+    ]
+  ]
+
+  edge [
+    source 1
+    target 2
+  ]
+
+  edge [
+    source 2
+    target 3
+  ]
+
+  edge [
+    source 3
+    target 4
+  ]
+
+  edge [
+    source 4
+    target 5
+  ]
+
+  edge [
+    source 5
+    target 6
+  ]
+
+  edge [
+    source 6
+    target 7
+  ]
+
+  edge [
+    source 7
+    target 8
+  ]
+
+  edge [
+    source 8
+    target 9
+  ]
+
+  edge [
+    source 8
+    target 10
+  ]
+
+  edge [
+    source 10
+    target 11
+  ]
+
+  edge [
+    source 11
+    target 12
+  ]
+
+  edge [
+    source 12
+    target 13
+  ]
+
+  edge [
+    source 13
+    target 14
+  ]
+
+  edge [
+    source 14
+    target 15
+  ]
+
+  edge [
+    source 15
+    target 16
+  ]
+
+  edge [
+    source 16
+    target 17
+  ]
+
+  edge [
+    source 17
+    target 18
+  ]
+
+  edge [
+    source 18
+    target 19
+  ]
+
+  edge [
+    source 19
+    target 20
+  ]
+
+  edge [
+    source 19
+    target 21
+  ]
+
+  edge [
+    source 21
+    target 22
+  ]
+
+  edge [
+    source 22
+    target 23
+  ]
+
+  edge [
+    source 23
+    target 24
+  ]
+
+  edge [
+    source 24
+    target 25
+  ]
+
+  edge [
+    source 25
+    target 26
+  ]
+
+  edge [
+    source 26
+    target 27
+  ]
+
+  edge [
+    source 27
+    target 28
+  ]
+
+  edge [
+    source 28
+    target 29
+  ]
+
+  edge [
+    source 29
+    target 30
+  ]
+
+  edge [
+    source 30
+    target 31
+  ]
+
+  edge [
+    source 31
+    target 32
+  ]
+
+  edge [
+    source 32
+    target 33
+  ]
+
+  edge [
+    source 33
+    target 34
+  ]
+
+  edge [
+    source 34
+    target 35
+  ]
+
+  edge [
+    source 35
+    target 36
+  ]
+
+  edge [
+    source 36
+    target 37
+  ]
+
+  edge [
+    source 37
+    target 38
+  ]
+
+  edge [
+    source 38
+    target 39
+  ]
+
+  edge [
+    source 39
+    target 40
+  ]
+
+  edge [
+    source 40
+    target 41
+  ]
+
+  edge [
+    source 41
+    target 42
+  ]
+
+  edge [
+    source 42
+    target 43
+  ]
+
+  edge [
+    source 43
+    target 44
+  ]
+
+  edge [
+    source 44
+    target 45
+  ]
+
+  edge [
+    source 45
+    target 46
+  ]
+
+  edge [
+    source 46
+    target 47
+  ]
+
+  edge [
+    source 47
+    target 48
+  ]
+
+  edge [
+    source 46
+    target 49
+  ]
+
+  edge [
+    source 43
+    target 50
+  ]
+
+  edge [
+    source 42
+    target 51
+  ]
+
+  edge [
+    source 41
+    target 52
+  ]
+
+  edge [
+    source 40
+    target 53
+  ]
+
+  edge [
+    source 35
+    target 54
+  ]
+
+  edge [
+    source 33
+    target 55
+  ]
+
+  edge [
+    source 55
+    target 56
+  ]
+
+  edge [
+    source 56
+    target 57
+  ]
+
+  edge [
+    source 57
+    target 58
+  ]
+
+  edge [
+    source 58
+    target 59
+  ]
+
+  edge [
+    source 26
+    target 60
+  ]
+
+  edge [
+    source 25
+    target 61
+  ]
+
+]

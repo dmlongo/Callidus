@@ -13,6 +13,7 @@ import (
 )
 
 func HypergraphTranslation(filePath string) {
+	os.RemoveAll("output")
 	cmd := exec.Command("java", "-jar", "libs/HypergraphTranslation.jar", "-convert", "-csp", filePath)
 	if err := cmd.Run(); err != nil {
 		panic(err)
@@ -29,7 +30,7 @@ func HypertreeDecomposition(filePath string) {
 }
 
 func GetHyperTree() (*Node, []*Node) {
-	file, err := os.Open("output/hypertree")
+	file, err := os.Open("hypertreeKakuro") //TODO: cambiare
 	if err != nil {
 		panic(err)
 	}
@@ -48,7 +49,7 @@ func GetHyperTree() (*Node, []*Node) {
 			id, _ := strconv.Atoi(res[1])
 			scanner.Scan() //TODO assert?
 			line = scanner.Text()
-			reg = regexp.MustCompile("label \"{(.*)} {(.*)}\".*")
+			reg = regexp.MustCompile("label \"{(.*)}\\s+{(.*)}\".*")
 			res = reg.FindStringSubmatch(line)
 			joinNodes := strings.Split(res[1], ", ")
 			variables := strings.Split(res[2], ", ")
