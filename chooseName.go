@@ -69,7 +69,7 @@ func main() {
 
 	start := time.Now()
 	fmt.Println("starting yannakaki")
-	ParallelYannakaki(root)
+	SequentialYannakaki(root)
 	fmt.Println("yannakaki finished")
 	fmt.Println(time.Since(start).Milliseconds())
 	/*for _, node := range nodes {

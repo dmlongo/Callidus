@@ -129,7 +129,7 @@ func solve(fileName string) {
 	if err != nil {
 		panic(err)
 	}
-	out, err := exec.Command("java", "-cp", "libs/AbsCon.jar", "AbsCon", fileName, "-s=all").Output()
+	out, err := exec.Command("nacre", fileName, "-complete", "-sols", "-verb=3").Output() //TODO: far funzionare nacre su windows
 	if err != nil {
 		panic(err)
 	}

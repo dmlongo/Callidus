@@ -28,7 +28,8 @@ func attachSingleNode(node *Node, wg *sync.WaitGroup) {
 	}
 	scanner := bufio.NewScanner(file)
 	var line string
-	reg := regexp.MustCompile("<instantiation id='sol\\d+' type='solution'> {2}<list>.*</list> {2}<values> (.*) </values> {2}</instantiation>.*")
+	//reg := regexp.MustCompile("<instantiation id='sol\\d+' type='solution'> {2}<list>.*</list> {2}<values> (.*) </values> {2}</instantiation>.*")
+	reg := regexp.MustCompile("v\\s+<instantiation>\\s+<list>.*</list>\\s+<values>(.*)</values>.*")
 	for scanner.Scan() {
 		line = scanner.Text()
 		res := reg.FindStringSubmatch(line)

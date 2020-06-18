@@ -24,7 +24,7 @@ func delByIndex(index int, slice [][]int) [][]int {
 func SequentialYannakaki(root *Node) *Node {
 	joiningIndex := &MyMap{}
 	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
-	joiningIndex.lock = &sync.Mutex{}
+	joiningIndex.lock = &sync.RWMutex{}
 	if len(root.Sons) != 0 {
 		sequentialBottomUp(root, joiningIndex)
 		sequentialTopDown(root, joiningIndex)
