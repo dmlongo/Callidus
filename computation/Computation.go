@@ -12,6 +12,7 @@ import (
 
 //TODO: testare se è meglio una goroutine per ogni nodo oppure se è meglio suddividere il file in pezzi
 func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nodes []*Node) {
+	//doNacreMakeFile() //se la scelta del solver è nacre
 	err := os.RemoveAll("subCSP")
 	if err != nil {
 		panic(err)
@@ -170,9 +171,17 @@ func solve(fileName string) {
 	//TODO: forse vanno aggiungti i permessi all'eseguibile di nacre
 	cmd := exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
 	cmd.Stdout = outfile
-	_ = cmd.Run()
+	cmd.Run()
 	err = outfile.Close()
 	if err != nil {
 		panic(err)
 	}
 }
+
+/*func doNacreMakeFile(){
+	cmd := exec.Command("make")
+	cmd.Dir = "/mnt/c/Users/simon/Desktop/Università/Tesi/Programmi/CSP_Project/libs/nacre_master/core"
+	if err := cmd.Run(); err != nil {
+		panic(err)
+	}
+}*/

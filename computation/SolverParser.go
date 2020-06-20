@@ -7,20 +7,32 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 )
 
-func AttachPossibleSolutions(nodes []*Node) {
-	wg := &sync.WaitGroup{}
-	wg.Add(len(nodes))
+func AttachPossibleSolutions(nodes []*Node) bool {
+	exit := make(chan bool, 100)
+	defer close(exit)
 	for _, node := range nodes {
-		go attachSingleNode(node, wg)
+		go attachSingleNode(node, &exit)
 	}
-	wg.Wait()
+	cont := 0
+	for {
+		select {
+		case res := <-exit:
+			if res {
+				cont++
+				if cont == len(nodes) {
+					break
+				}
+			} else {
+				return false
+			}
+		}
+	}
+	return true
 }
 
-func attachSingleNode(node *Node, wg *sync.WaitGroup) {
-	defer wg.Done()
+func attachSingleNode(node *Node, exit *chan bool) {
 	file, err := os.Open("subCSP/" + strconv.Itoa(node.Id) + "sol.txt")
 	defer file.Close()
 	if err != nil {
@@ -29,10 +41,11 @@ func attachSingleNode(node *Node, wg *sync.WaitGroup) {
 	scanner := bufio.NewScanner(file)
 	var line string
 	//reg := regexp.MustCompile("<instantiation id='sol\\d+' type='solution'> {2}<list>.*</list> {2}<values> (.*) </values> {2}</instantiation>.*")
-	reg := regexp.MustCompile("v\\s+<instantiation>\\s+<list>.*</list>\\s+<values>(.*)</values>.*")
+	regSol := regexp.MustCompile("v\\s+<instantiation>\\s+<list>.*</list>\\s+<values>(.*)</values>.*")
+	regNumSol := regexp.MustCompile("c # Sols = (.*)")
 	for scanner.Scan() {
 		line = scanner.Text()
-		res := reg.FindStringSubmatch(line)
+		res := regSol.FindStringSubmatch(line)
 		if len(res) > 1 {
 			value := make([]int, 0)
 			for _, v := range strings.Split(res[1], " ") {
@@ -40,6 +53,16 @@ func attachSingleNode(node *Node, wg *sync.WaitGroup) {
 				value = append(value, i)
 			}
 			node.AddPossibleValue(value)
+		} else {
+			res := regNumSol.FindStringSubmatch(line)
+			if len(res) > 1 {
+				num := strings.Split(res[1], " ")
+				if num[0] == "0" {
+					*exit <- false
+					return
+				}
+			}
 		}
 	}
+	*exit <- true
 }

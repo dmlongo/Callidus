@@ -23,6 +23,7 @@ func main() {
 	yannakakiVersion := selectYannakakiVersion(args) //true if parallale, false if sequential
 	fmt.Println(yannakakiVersion)
 	fmt.Println("Start")
+	start := time.Now()
 
 	fmt.Println("creating hypergraph")
 	HypergraphTranslation(filePath)
@@ -72,14 +73,17 @@ func main() {
 	SubCSP_Computation(domains, constraints, nodes)
 	fmt.Println("sub csp computed")
 	fmt.Println("adding tables to nodes")
-	AttachPossibleSolutions(nodes)
+	satisfiable := AttachPossibleSolutions(nodes)
+	if !satisfiable {
+		fmt.Println("NO SOLUTIONS")
+		return
+	}
 	fmt.Println("tables added")
 	/*err = os.RemoveAll("subCSP")
 	if err != nil {
 		panic(err)
 	}*/
 
-	start := time.Now()
 	fmt.Println("starting yannakaki")
 	Yannakaki(root, yannakakiVersion)
 	fmt.Println("yannakaki finished")
