@@ -168,7 +168,7 @@ func solve(fileName string) {
 		panic(err)
 	}
 	//TODO: forse vanno aggiungti i permessi all'eseguibile di nacre
-	cmd := exec.Command("./nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
+	cmd := exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
 	cmd.Stdout = outfile
 	_ = cmd.Run()
 	err = outfile.Close()

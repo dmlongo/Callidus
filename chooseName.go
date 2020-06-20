@@ -25,9 +25,9 @@ func main() {
 	HypergraphTranslation(filePath)
 	fmt.Println("hypergraph created")
 
-	/*fmt.Println("hypertree decomposition")
+	fmt.Println("hypertree decomposition")
 	HypertreeDecomposition(filePath)
-	fmt.Println("hypertree ready")*/
+	fmt.Println("hypertree ready")
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -69,7 +69,7 @@ func main() {
 
 	start := time.Now()
 	fmt.Println("starting yannakaki")
-	SequentialYannakaki(root)
+	ParallelYannakaki(root)
 	fmt.Println("yannakaki finished")
 	fmt.Println(time.Since(start).Milliseconds())
 	/*for _, node := range nodes {

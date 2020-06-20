@@ -86,9 +86,8 @@ func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
 func parallelTopDown(actual *Node, joiningIndex *MyMap) {
 	var wg sync.WaitGroup
 	wg.Add(len(actual.Sons))
-	var s *Node
 	for _, son := range actual.Sons {
-		s = son
+		s := son
 		doSemiJoin(actual, s, joiningIndex)
 		go func() {
 			parallelTopDown(s, joiningIndex)

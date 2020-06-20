@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -23,7 +24,14 @@ func HypergraphTranslation(filePath string) {
 func HypertreeDecomposition(filePath string) {
 	hypergraphPath := strings.ReplaceAll(filePath, ".xml", "hypergraph.hg")
 	hypergraphPath = fmt.Sprintf("output/" + hypergraphPath)
-	cmd := exec.Command("libs/balanced.exe", "-exact", "-graph", hypergraphPath, "-det", "-gml", "output/hypertree")
+	var name string
+	switch runtime.GOOS {
+	case "windows":
+		name = "libs/balanced.exe"
+	case "linux":
+		name = "./libs/balancedLinux"
+	}
+	cmd := exec.Command(name, "-exact", "-graph", hypergraphPath, "-det", "-gml", "output/hypertree")
 	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
@@ -51,9 +59,8 @@ func GetHyperTree() (*Node, []*Node) {
 			line = scanner.Text()
 			reg = regexp.MustCompile("label \"{(.*)}\\s+{(.*)}\".*")
 			res = reg.FindStringSubmatch(line)
-			joinNodes := strings.Split(res[1], ", ")
 			variables := strings.Split(res[2], ", ")
-			node := Node{Id: id, JoinNodes: joinNodes, Variables: variables}
+			node := Node{Id: id, Variables: variables}
 			nodes[id] = &node
 			onlyNodes = append(onlyNodes, &node)
 		} else if strings.Contains(line, "edge") {
