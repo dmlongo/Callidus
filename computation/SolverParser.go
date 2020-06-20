@@ -22,7 +22,7 @@ func AttachPossibleSolutions(nodes []*Node) bool {
 			if res {
 				cont++
 				if cont == len(nodes) {
-					break
+					return true
 				}
 			} else {
 				return false
