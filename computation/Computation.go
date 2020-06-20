@@ -12,8 +12,11 @@ import (
 
 //TODO: testare se è meglio una goroutine per ogni nodo oppure se è meglio suddividere il file in pezzi
 func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nodes []*Node) {
-	os.RemoveAll("subCSP")
-	err := os.Mkdir("subCSP", 777)
+	err := os.RemoveAll("subCSP")
+	if err != nil {
+		panic(err)
+	}
+	err = os.Mkdir("subCSP", 0777)
 	if err != nil {
 		panic(err)
 	}
@@ -27,17 +30,25 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 
 func createAndSolveSubCSP(node *Node, domains map[string][]int, constraints []*Constraint, wg *sync.WaitGroup) {
 	fileName := "subCSP/" + strconv.Itoa(node.Id) + ".xml"
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND, 777)
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
 
-	file.WriteString("<instance format=\"XCSP3\" type=\"CSP\">\n")
+	_, err = file.WriteString("<instance format=\"XCSP3\" type=\"CSP\">\n")
+	if err != nil {
+		panic(err)
+	}
 	writeVariables(file, node.Variables, domains)
 	writeConstraints(file, node.Variables, constraints)
-	file.WriteString("</instance>\n")
-	file.Close()
+	_, err = file.WriteString("</instance>\n")
+	if err != nil {
+		panic(err)
+	}
+	err = file.Close()
+	if err != nil {
+		panic(err)
+	}
 
 	solve(fileName)
 
@@ -45,7 +56,10 @@ func createAndSolveSubCSP(node *Node, domains map[string][]int, constraints []*C
 }
 
 func writeVariables(file *os.File, variables []string, domains map[string][]int) {
-	file.WriteString("<variables>\n")
+	_, err := file.WriteString("<variables>\n")
+	if err != nil {
+		panic(err)
+	}
 	for _, variable := range variables {
 		dom := domains[variable]
 		values := "<var id=\"" + variable + "\"> "
@@ -53,22 +67,46 @@ func writeVariables(file *os.File, variables []string, domains map[string][]int)
 			values += strconv.Itoa(i) + " "
 		}
 		values += "</var>\n"
-		file.WriteString(values)
+		_, err = file.WriteString(values)
+		if err != nil {
+			panic(err)
+		}
 	}
-	file.WriteString("</variables>\n")
+	_, err = file.WriteString("</variables>\n")
+	if err != nil {
+		panic(err)
+	}
 }
 
 func writeConstraints(file *os.File, variables []string, constraints []*Constraint) {
-	file.WriteString("<constraints>\n")
+	_, err := file.WriteString("<constraints>\n")
+	if err != nil {
+		panic(err)
+	}
 	for _, constraint := range constraints {
 		if isConstraintOk(constraint.Variables, variables) {
-			file.WriteString("<extension>\n")
-			file.WriteString(getListVariable(constraint.Variables))
-			file.WriteString(getPossibleValues(constraint))
-			file.WriteString("</extension>\n")
+			_, err = file.WriteString("<extension>\n")
+			if err != nil {
+				panic(err)
+			}
+			_, err = file.WriteString(getListVariable(constraint.Variables))
+			if err != nil {
+				panic(err)
+			}
+			_, err = file.WriteString(getPossibleValues(constraint))
+			if err != nil {
+				panic(err)
+			}
+			_, err = file.WriteString("</extension>\n")
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
-	file.WriteString("</constraints>\n")
+	_, err = file.WriteString("</constraints>\n")
+	if err != nil {
+		panic(err)
+	}
 }
 
 //check if the constraint is associated with a node variables
@@ -129,9 +167,17 @@ func solve(fileName string) {
 	if err != nil {
 		panic(err)
 	}
-	out, err := exec.Command("nacre", fileName, "-complete", "-sols", "-verb=3").Output() //TODO: far funzionare nacre su windows
+	//TODO: forse vanno aggiungti i permessi all'eseguibile di nacre
+	out, err := exec.Command("./nacre", fileName, "-complete", "-sols", "-verb=3").Output() //TODO: far funzionare nacre su windows
 	if err != nil {
 		panic(err)
 	}
-	outputFile.Write(out)
+	_, err = outputFile.Write(out)
+	if err != nil {
+		panic(err)
+	}
+	err = outputFile.Close()
+	if err != nil {
+		panic(err)
+	}
 }
