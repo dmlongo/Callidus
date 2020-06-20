@@ -163,20 +163,15 @@ func getPossibleValues(constraint *Constraint) string {
 
 func solve(fileName string) {
 	outputFileName := strings.ReplaceAll(fileName, ".xml", "sol.txt")
-	outputFile, err := os.OpenFile(outputFileName, os.O_CREATE|os.O_APPEND, 777)
+	outfile, err := os.Create(outputFileName)
 	if err != nil {
 		panic(err)
 	}
 	//TODO: forse vanno aggiungti i permessi all'eseguibile di nacre
-	out, err := exec.Command("./nacre", fileName, "-complete", "-sols", "-verb=3").Output() //TODO: far funzionare nacre su windows
-	if err != nil {
-		panic(err)
-	}
-	_, err = outputFile.Write(out)
-	if err != nil {
-		panic(err)
-	}
-	err = outputFile.Close()
+	cmd := exec.Command("./nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
+	cmd.Stdout = outfile
+	_ = cmd.Run()
+	err = outfile.Close()
 	if err != nil {
 		panic(err)
 	}

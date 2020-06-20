@@ -16,7 +16,11 @@ type MyMap struct {
 }
 
 func delByIndex(index int, slice [][]int) [][]int {
-	slice = append(slice[:index], slice[index+1:]...)
+	if index+1 >= len(slice) {
+		slice = slice[:index]
+	} else {
+		slice = append(slice[:index], slice[index+1:]...)
+	}
 	return slice
 }
 
@@ -82,9 +86,10 @@ func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
 func parallelTopDown(actual *Node, joiningIndex *MyMap) {
 	var wg sync.WaitGroup
 	wg.Add(len(actual.Sons))
+	var s *Node
 	for _, son := range actual.Sons {
-		doSemiJoin(actual, son, joiningIndex)
-		s := son
+		s = son
+		doSemiJoin(actual, s, joiningIndex)
 		go func() {
 			parallelTopDown(s, joiningIndex)
 			wg.Done()
