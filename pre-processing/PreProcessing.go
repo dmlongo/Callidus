@@ -14,9 +14,12 @@ import (
 )
 
 func HypergraphTranslation(filePath string) {
-	os.RemoveAll("output")
+	err := os.RemoveAll("output")
+	if err != nil {
+		panic(err)
+	}
 	cmd := exec.Command("java", "-jar", "libs/HypergraphTranslation.jar", "-convert", "-csp", filePath)
-	if err := cmd.Run(); err != nil {
+	if err = cmd.Run(); err != nil {
 		panic(err)
 	}
 }
@@ -38,11 +41,10 @@ func HypertreeDecomposition(filePath string) {
 }
 
 func GetHyperTree() (*Node, []*Node) {
-	file, err := os.Open("hypertreeKakuro") //TODO: cambiare
+	file, err := os.Open("hypertreeKakuro") //TODO: just debugging, change it
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
 	nodes := make(map[int]*Node)
 	var onlyNodes []*Node
 	scanner := bufio.NewScanner(file)
@@ -50,12 +52,12 @@ func GetHyperTree() (*Node, []*Node) {
 	for scanner.Scan() {
 		line = scanner.Text()
 		if strings.Contains(line, "node") {
-			scanner.Scan() //TODO assert?
+			scanner.Scan()
 			line = scanner.Text()
 			reg := regexp.MustCompile("id (.*).*")
 			res := reg.FindStringSubmatch(line)
 			id, _ := strconv.Atoi(res[1])
-			scanner.Scan() //TODO assert?
+			scanner.Scan()
 			line = scanner.Text()
 			reg = regexp.MustCompile("label \"{(.*)}\\s+{(.*)}\".*")
 			res = reg.FindStringSubmatch(line)
@@ -84,6 +86,10 @@ func GetHyperTree() (*Node, []*Node) {
 			break
 		}
 	}
+	err = file.Close()
+	if err != nil {
+		panic(err)
+	}
 	return root, onlyNodes
 }
 
@@ -94,7 +100,6 @@ func GetConstraints(filePath string) []*Constraint {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	var line string
 	var constraints []*Constraint
@@ -110,6 +115,8 @@ func GetConstraints(filePath string) []*Constraint {
 				c = &Constraint{CType: true}
 			} else if line == "conflicts" {
 				c = &Constraint{CType: false}
+			} else {
+				panic("constraint " + line + " not supported")
 			}
 			phase2 = true
 			phase1 = false
@@ -143,6 +150,10 @@ func GetConstraints(filePath string) []*Constraint {
 			}
 		}
 	}
+	err = file.Close()
+	if err != nil {
+		panic(err)
+	}
 	return constraints
 }
 
@@ -153,7 +164,6 @@ func GetDomains(filePath string) map[string][]int {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	var line string
 	m := make(map[string][]int)
@@ -167,6 +177,10 @@ func GetDomains(filePath string) map[string][]int {
 			values = append(values, i)
 		}
 		m[variable] = values
+	}
+	err = file.Close()
+	if err != nil {
+		panic(err)
 	}
 	return m
 }

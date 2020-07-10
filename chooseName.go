@@ -58,6 +58,10 @@ func main() {
 	}()
 
 	wg.Wait()
+	err := os.RemoveAll("output")
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println("starting sub csp computation")
 	SubCSP_Computation(domains, constraints, nodes)
@@ -66,13 +70,14 @@ func main() {
 	fmt.Println("adding tables to nodes")
 	AttachPossibleSolutions(nodes)
 	fmt.Println("tables added")
+	err = os.RemoveAll("subCSP")
+	if err != nil {
+		panic(err)
+	}
 
 	start := time.Now()
 	fmt.Println("starting yannakaki")
 	ParallelYannakaki(root)
 	fmt.Println("yannakaki finished")
 	fmt.Println(time.Since(start).Milliseconds())
-	/*for _, node := range nodes {
-		fmt.Println(node)
-	}*/
 }
