@@ -15,13 +15,13 @@ import (
 func main() {
 
 	args := os.Args[1:]
-	fmt.Println(args)
 	filePath := args[0]
 	if !strings.HasSuffix(filePath, ".xml") {
 		panic("The first parameter must be an xml file")
 	}
 	hypertreeFile := takeHypertreeFile(args)
-
+	yannakakiVersion := selectYannakakiVersion(args) //true if parallale, false if sequential
+	fmt.Println(yannakakiVersion)
 	fmt.Println("Start")
 
 	fmt.Println("creating hypergraph")
@@ -63,26 +63,25 @@ func main() {
 	}()
 
 	wg.Wait()
-	err := os.RemoveAll("output")
+	/*err := os.RemoveAll("output")
 	if err != nil {
 		panic(err)
-	}
+	}*/
 
 	fmt.Println("starting sub csp computation")
 	SubCSP_Computation(domains, constraints, nodes)
 	fmt.Println("sub csp computed")
-	//start := time.Now()
 	fmt.Println("adding tables to nodes")
 	AttachPossibleSolutions(nodes)
 	fmt.Println("tables added")
-	err = os.RemoveAll("subCSP")
+	/*err = os.RemoveAll("subCSP")
 	if err != nil {
 		panic(err)
-	}
+	}*/
 
 	start := time.Now()
 	fmt.Println("starting yannakaki")
-	ParallelYannakaki(root)
+	Yannakaki(root, yannakakiVersion)
 	fmt.Println("yannakaki finished")
 	fmt.Println(time.Since(start).Milliseconds())
 }
@@ -97,11 +96,29 @@ func contains(args []string, param string) int {
 }
 
 func takeHypertreeFile(args []string) string {
-	if i := contains(args, "-h"); i != -1 {
-		return args[i+1]
+	i := contains(args, "-h")
+	if i == -1 {
+		i = contains(args, "--hypertree")
 	}
-	if i := contains(args, "--hypertree"); i != -1 {
+	if i != -1 {
 		return args[i+1]
 	}
 	return "output/hypertree"
+}
+
+func selectYannakakiVersion(args []string) bool {
+	i := contains(args, "-y")
+	if i == -1 {
+		i = contains(args, "--yannakaki")
+	}
+	if i != -1 {
+		version := args[i+1]
+		if version != "s" && version != "p" {
+			panic(args[i] + " must be followed by 's' or 'p'")
+		}
+		if version == "s" {
+			return false
+		}
+	}
+	return true
 }

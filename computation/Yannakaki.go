@@ -24,14 +24,18 @@ func delByIndex(index int, slice [][]int) [][]int {
 	return slice
 }
 
-//TODO: forse sequential e parallel possono essere accorpati in caso dovremo utilizzarli parecchio
-func SequentialYannakaki(root *Node) *Node {
+func Yannakaki(root *Node, version bool) *Node {
 	joiningIndex := &MyMap{}
 	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
 	joiningIndex.lock = &sync.RWMutex{}
 	if len(root.Sons) != 0 {
-		sequentialBottomUp(root, joiningIndex)
-		sequentialTopDown(root, joiningIndex)
+		if version {
+			parallelBottomUp(root, joiningIndex)
+			parallelTopDown(root, joiningIndex)
+		} else {
+			sequentialBottomUp(root, joiningIndex)
+			sequentialTopDown(root, joiningIndex)
+		}
 	}
 	return root
 }
@@ -50,17 +54,6 @@ func sequentialTopDown(actual *Node, joiningIndex *MyMap) {
 		doSemiJoin(actual, son, joiningIndex)
 		sequentialTopDown(son, joiningIndex)
 	}
-}
-
-func ParallelYannakaki(root *Node) *Node {
-	joiningIndex := &MyMap{}
-	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
-	joiningIndex.lock = &sync.RWMutex{}
-	if len(root.Sons) != 0 {
-		parallelBottomUp(root, joiningIndex)
-		parallelTopDown(root, joiningIndex)
-	}
-	return root
 }
 
 func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
