@@ -40,8 +40,8 @@ func HypertreeDecomposition(filePath string) {
 	}
 }
 
-func GetHyperTree() (*Node, []*Node) {
-	file, err := os.Open("hypertreeKakuro") //TODO: just debugging, change it
+func GetHyperTree(filePath string) (*Node, []*Node) {
+	file, err := os.Open(filePath)
 	if err != nil {
 		panic(err)
 	}
