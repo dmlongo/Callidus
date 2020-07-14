@@ -3,16 +3,19 @@ package computation
 import (
 	. "../../CSP_Project/constraint"
 	. "../../CSP_Project/hyperTree"
+	"fmt"
+	"strings"
+
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 	"sync"
 )
 
 //TODO: testare se è meglio una goroutine per ogni nodo oppure se è meglio suddividere il file in pezzi
-func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nodes []*Node) {
+func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nodes []*Node, inMemory bool) []string {
 	//doNacreMakeFile() //se la scelta del solver è nacre
+	solutions := make([]string, len(nodes))
 	err := os.RemoveAll("subCSP")
 	if err != nil {
 		panic(err)
@@ -23,13 +26,21 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 	}
 	wg := &sync.WaitGroup{}
 	wg.Add(len(nodes))
-	for _, node := range nodes {
-		go createAndSolveSubCSP(node, domains, constraints, wg) //TODO: gestire possibile overhead
+	fmt.Println(len(nodes))
+	for i, node := range nodes {
+		c := make(chan string, 1)
+		go createAndSolveSubCSP(node, domains, constraints, wg, c, inMemory) //TODO: gestire possibile overhead
+		if inMemory {
+			sol := <-c
+			solutions[i] = sol
+		}
 	}
 	wg.Wait()
+	return solutions
 }
 
-func createAndSolveSubCSP(node *Node, domains map[string][]int, constraints []*Constraint, wg *sync.WaitGroup) {
+func createAndSolveSubCSP(node *Node, domains map[string][]int, constraints []*Constraint, wg *sync.WaitGroup, c chan string, inMemory bool) {
+	defer wg.Done()
 	fileName := "subCSP/" + strconv.Itoa(node.Id) + ".xml"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
 	if err != nil {
@@ -51,9 +62,11 @@ func createAndSolveSubCSP(node *Node, domains map[string][]int, constraints []*C
 		panic(err)
 	}
 
-	solve(fileName)
+	result := solve(fileName, inMemory)
 
-	wg.Done()
+	if inMemory {
+		c <- result
+	}
 }
 
 func writeVariables(file *os.File, variables []string, domains map[string][]int) {
@@ -162,19 +175,27 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(fileName string) {
-	outputFileName := strings.ReplaceAll(fileName, ".xml", "sol.txt")
-	outfile, err := os.Create(outputFileName)
-	if err != nil {
-		panic(err)
-	}
-	//TODO: forse vanno aggiungti i permessi all'eseguibile di nacre
-	cmd := exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
-	cmd.Stdout = outfile
-	cmd.Run()
-	err = outfile.Close()
-	if err != nil {
-		panic(err)
+func solve(fileName string, inMemory bool) string {
+	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
+	cmd := exec.Command("./libs/nacreWSL", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
+
+	if inMemory {
+		buffer, _ := cmd.Output()
+
+		return string(buffer)
+	} else {
+		outputFileName := strings.ReplaceAll(fileName, ".xml", "sol.txt")
+		outfile, err := os.Create(outputFileName)
+		if err != nil {
+			panic(err)
+		}
+		cmd.Stdout = outfile
+		cmd.Run()
+		err = outfile.Close()
+		if err != nil {
+			panic(err)
+		}
+		return ""
 	}
 }
 

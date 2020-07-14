@@ -6,6 +6,7 @@ import (
 	. "../CSP_Project/hyperTree"
 	. "../CSP_Project/pre-processing"
 	"fmt"
+
 	"os"
 	"strings"
 	"sync"
@@ -13,6 +14,13 @@ import (
 )
 
 func main() {
+	/*f, err := os.Create("cpuprofile")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()*/
+	//defer profile.Start(profile.CPUProfile, profile.ProfilePath(".")).Stop()
 
 	args := os.Args[1:]
 	filePath := args[0]
@@ -20,7 +28,8 @@ func main() {
 		panic("The first parameter must be an xml file")
 	}
 	hypertreeFile := takeHypertreeFile(args)
-	yannakakiVersion := selectYannakakiVersion(args) //true if parallale, false if sequential
+	yannakakiVersion := selectYannakakiVersion(args) //true if parallel, false if sequential
+	inMemory := selectComputation(args)              // -i for computation in memory, inMemory = true or inMemory = false if not
 	fmt.Println(yannakakiVersion)
 	fmt.Println("Start")
 	start := time.Now()
@@ -70,10 +79,11 @@ func main() {
 	}*/
 
 	fmt.Println("starting sub csp computation")
-	SubCSP_Computation(domains, constraints, nodes)
+	solutions := SubCSP_Computation(domains, constraints, nodes, inMemory)
+	//fmt.Println(solutions)
 	fmt.Println("sub csp computed")
 	fmt.Println("adding tables to nodes")
-	satisfiable := AttachPossibleSolutions(nodes)
+	satisfiable := AttachPossibleSolutions(nodes, &solutions, inMemory)
 	if !satisfiable {
 		fmt.Println("NO SOLUTIONS")
 		return
@@ -87,6 +97,9 @@ func main() {
 	fmt.Println("starting yannakaki")
 	Yannakaki(root, yannakakiVersion)
 	fmt.Println("yannakaki finished")
+	//for _, node := range nodes{
+	//	fmt.Println(*node)
+	//}
 	fmt.Println(time.Since(start).Milliseconds())
 }
 
@@ -125,4 +138,12 @@ func selectYannakakiVersion(args []string) bool {
 		}
 	}
 	return true
+}
+
+func selectComputation(args []string) bool {
+	i := contains(args, "-i")
+	if i != -1 {
+		return true
+	}
+	return false
 }
