@@ -18,3 +18,4 @@ subCSP
 output
 .idea
 # vendor/
+/XCSP_Instances/

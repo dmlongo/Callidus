@@ -25,7 +25,12 @@ func HypergraphTranslation(filePath string) {
 }
 
 func HypertreeDecomposition(filePath string) {
-	hypergraphPath := strings.ReplaceAll(filePath, ".xml", "hypergraph.hg")
+	var hypergraphPath string
+	if strings.HasSuffix(filePath, ".xml") {
+		hypergraphPath = strings.ReplaceAll(filePath, ".xml", "hypergraph.hg")
+	} else if strings.HasSuffix(filePath, ".lzma") {
+		hypergraphPath = strings.ReplaceAll(filePath, ".lzma", "hypergraph.hg")
+	}
 	hypergraphPath = fmt.Sprintf("output/" + hypergraphPath)
 	var name string
 	switch runtime.GOOS {
@@ -94,7 +99,12 @@ func GetHyperTree(filePath string) (*Node, []*Node) {
 }
 
 func GetConstraints(filePath string) []*Constraint {
-	tablesPath := strings.ReplaceAll(filePath, ".xml", "tables.hg")
+	var tablesPath string
+	if strings.HasSuffix(filePath, ".xml") {
+		tablesPath = strings.ReplaceAll(filePath, ".xml", "tables.hg")
+	} else if strings.HasSuffix(filePath, ".lzma") {
+		tablesPath = strings.ReplaceAll(filePath, ".lzma", "tables.hg")
+	}
 	tablesPath = fmt.Sprintf("output/" + tablesPath)
 	file, err := os.Open(tablesPath)
 	if err != nil {
@@ -158,7 +168,12 @@ func GetConstraints(filePath string) []*Constraint {
 }
 
 func GetDomains(filePath string) map[string][]int {
-	domainPath := strings.ReplaceAll(filePath, ".xml", "domain.hg")
+	var domainPath string
+	if strings.HasSuffix(filePath, ".xml") {
+		domainPath = strings.ReplaceAll(filePath, ".xml", "domain.hg")
+	} else if strings.HasSuffix(filePath, ".lzma") {
+		domainPath = strings.ReplaceAll(filePath, ".lzma", "domain.hg")
+	}
 	domainPath = fmt.Sprintf("output/" + domainPath)
 	file, err := os.Open(domainPath)
 	if err != nil {
