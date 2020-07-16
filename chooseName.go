@@ -34,10 +34,11 @@ func main() {
 	HypergraphTranslation(filePath)
 	fmt.Println("hypergraph in ", time.Since(startTranslation))
 
+	hyperTreeRaw := ""
 	if hypertreeFile == "output/hypertree" {
 		fmt.Println("decomposing hypertree")
 		startDecomposition := time.Now()
-		HypertreeDecomposition(filePath, balancedAlgorithm)
+		hyperTreeRaw = HypertreeDecomposition(filePath, balancedAlgorithm, inMemory)
 		fmt.Println("hypertree decomposed in ", time.Since(startDecomposition))
 	}
 
@@ -49,16 +50,21 @@ func main() {
 	go func() {
 		fmt.Println("creating hypertree")
 		startHypertreeCreation := time.Now()
-		root, nodes = GetHyperTree(hypertreeFile)
+		if inMemory {
+			root, nodes = GetHyperTreeInMemory(hypertreeFile, &hyperTreeRaw)
+		} else {
+			root, nodes = GetHyperTree(hypertreeFile)
+		}
 		fmt.Println("hypertree created in ", time.Since(startHypertreeCreation))
 		wg.Done()
 	}()
 
 	var domains map[string][]int
+	var result map[string]int
 	go func() {
 		fmt.Println("parsing domain")
 		startDomainParsing := time.Now()
-		domains = GetDomains(filePath)
+		domains, result = GetDomains(filePath)
 		fmt.Println("domain parsed in ", time.Since(startDomainParsing))
 		wg.Done()
 	}()

@@ -183,7 +183,7 @@ func solve(fileName string, inMemory bool, solver string) string {
 	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
 	var cmd *exec.Cmd
 	if solver == "Nacre" {
-		cmd = exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
+		cmd = exec.Command("./libs/nacreWSL", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
 	} else if solver == "AbsCon" {
 		cmd = exec.Command("java", "-cp", "./libs/AbsCon.jar", "AbsCon", fileName, "-s=all")
 	} else {

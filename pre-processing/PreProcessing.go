@@ -24,7 +24,7 @@ func HypergraphTranslation(filePath string) {
 	}
 }
 
-func HypertreeDecomposition(filePath string, algorithm string) {
+func HypertreeDecomposition(filePath string, algorithm string, inMemory bool) string {
 	var hypergraphPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		hypergraphPath = strings.ReplaceAll(filePath, ".xml", "hypergraph.hg")
@@ -39,14 +39,29 @@ func HypertreeDecomposition(filePath string, algorithm string) {
 	case "linux":
 		name = "./libs/balancedLinux"
 	}
+
 	var cmd *exec.Cmd
-	if algorithm == "det" {
-		cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det", "-gml", "output/hypertree")
-	} else if algorithm == "balDet" {
-		cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1", "-gml", "output/hypertree")
-	}
-	if err := cmd.Run(); err != nil {
-		panic(err)
+	if inMemory {
+		if algorithm == "det" {
+			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det")
+		}else if algorithm == "balDet" {
+			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1")
+		}
+		byte, err := cmd.Output()
+		if err != nil {
+			panic(err)
+		}
+		return string(byte)
+	} else {
+		if algorithm == "det" {
+			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det", "-gml", "output/hypertree")
+		} else if algorithm == "balDet" {
+			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1", "-gml", "output/hypertree")
+		}
+		if err := cmd.Run(); err != nil {
+			panic(err)
+		}
+		return ""
 	}
 }
 
@@ -99,6 +114,45 @@ func GetHyperTree(filePath string) (*Node, []*Node) {
 	err = file.Close()
 	if err != nil {
 		panic(err)
+	}
+	return root, onlyNodes
+}
+
+func GetHyperTreeInMemory(filePath string, hyperTreeRaw *string) (*Node, []*Node) {
+	output := strings.Split(*hyperTreeRaw, "\n")
+	nodes := make(map[int]*Node)
+	var onlyNodes []*Node
+	var fathersQueue []*Node
+	idNodes := 0
+	for i := 0; i < len(output); i++ {
+		line := output[i]
+		if strings.Contains(line, "Bag") {
+			reg := regexp.MustCompile("Bag: {(.*)}.*")
+			res := reg.FindStringSubmatch(line)
+			variables := strings.Split(res[1], ", ")
+			var nodeFather *Node = nil
+			if len(fathersQueue) > 0 {
+				nodeFather = fathersQueue[len(fathersQueue)-1]
+			}
+			node := Node{Id: idNodes, Variables: variables, Father: nodeFather}
+			if nodeFather != nil {
+				nodeFather.AddSon(&node)
+			}
+			nodes[idNodes] = &node
+			idNodes++
+			onlyNodes = append(onlyNodes, &node)
+		} else if strings.Contains(line, "Children") {
+			fathersQueue = append(fathersQueue, nodes[idNodes-1])
+		} else if strings.Contains(line, "]") {
+			fathersQueue = fathersQueue[:len(fathersQueue)-1]
+		}
+	}
+	var root *Node
+	for a := range nodes {
+		if nodes[a].Father == nil {
+			root = nodes[a]
+			break
+		}
 	}
 	return root, onlyNodes
 }
@@ -172,7 +226,7 @@ func GetConstraints(filePath string) []*Constraint {
 	return constraints
 }
 
-func GetDomains(filePath string) map[string][]int {
+func GetDomains(filePath string) (map[string][]int, map[string]int) {
 	var domainPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		domainPath = strings.ReplaceAll(filePath, ".xml", "domain.hg")
@@ -187,6 +241,7 @@ func GetDomains(filePath string) map[string][]int {
 	scanner := bufio.NewScanner(file)
 	var line string
 	m := make(map[string][]int)
+	result := make(map[string]int)
 	for scanner.Scan() {
 		variable := scanner.Text()
 		scanner.Scan()
@@ -197,10 +252,11 @@ func GetDomains(filePath string) map[string][]int {
 			values = append(values, i)
 		}
 		m[variable] = values
+		result[variable] = -1
 	}
 	err = file.Close()
 	if err != nil {
 		panic(err)
 	}
-	return m
+	return m, result
 }
