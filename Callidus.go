@@ -116,22 +116,21 @@ func main() {
 	fmt.Println("ended in ", time.Since(start))
 
 	var results []*Result
-	for i, node := range nodes {
-		if i == 0 {
-			for _, arrayNodeSingleResult := range node.PossibleValues {
+	for _, node := range nodes {
+		for indexResult, arrayNodeSingleResult := range node.PossibleValues {
+			if len(results) <= indexResult {
 				res := make(Result)
 				for indexVariable, singleValue := range arrayNodeSingleResult {
 					res[node.Variables[indexVariable]] = singleValue
 				}
 				results = append(results, &res)
-			}
-		} else {
-			for indexResult, arrayNodeSingleResult := range node.PossibleValues {
+			} else {
 				res := results[indexResult]
 				for indexVariable, singleValue := range arrayNodeSingleResult {
 					(*res)[node.Variables[indexVariable]] = singleValue
 				}
 			}
+
 		}
 	}
 	if len(results) > 0 {

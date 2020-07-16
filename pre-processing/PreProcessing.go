@@ -44,7 +44,7 @@ func HypertreeDecomposition(filePath string, algorithm string, inMemory bool) st
 	if inMemory {
 		if algorithm == "det" {
 			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det")
-		}else if algorithm == "balDet" {
+		} else if algorithm == "balDet" {
 			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1")
 		}
 		byte, err := cmd.Output()
