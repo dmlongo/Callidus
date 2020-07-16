@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+type Result map[string]int
+
 func main() {
 	args := os.Args[1:]
 	filePath := args[0]
@@ -60,11 +62,11 @@ func main() {
 	}()
 
 	var domains map[string][]int
-	var result map[string]int
+	var variables []string
 	go func() {
 		fmt.Println("parsing domain")
 		startDomainParsing := time.Now()
-		domains, result = GetDomains(filePath)
+		domains, variables = GetDomains(filePath)
 		fmt.Println("domain parsed in ", time.Since(startDomainParsing))
 		wg.Done()
 	}()
@@ -112,6 +114,34 @@ func main() {
 	Yannakaki(root, yannakakiVersion)
 	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
 	fmt.Println("ended in ", time.Since(start))
+
+	var results []*Result
+	for i, node := range nodes {
+		if i == 0 {
+			for _, arrayNodeSingleResult := range node.PossibleValues {
+				res := make(Result)
+				for indexVariable, singleValue := range arrayNodeSingleResult {
+					res[node.Variables[indexVariable]] = singleValue
+				}
+				results = append(results, &res)
+			}
+		} else {
+			for indexResult, arrayNodeSingleResult := range node.PossibleValues {
+				res := results[indexResult]
+				for indexVariable, singleValue := range arrayNodeSingleResult {
+					(*res)[node.Variables[indexVariable]] = singleValue
+				}
+			}
+		}
+	}
+	if len(results) > 0 {
+		fmt.Println("SOLUTIONS:")
+		for _, result := range results {
+			fmt.Println(result)
+		}
+	} else {
+		fmt.Println("NO SOLUTIONS")
+	}
 }
 
 func contains(args []string, param string) int {

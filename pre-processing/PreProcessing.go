@@ -226,7 +226,7 @@ func GetConstraints(filePath string) []*Constraint {
 	return constraints
 }
 
-func GetDomains(filePath string) (map[string][]int, map[string]int) {
+func GetDomains(filePath string) (map[string][]int, []string) {
 	var domainPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		domainPath = strings.ReplaceAll(filePath, ".xml", "domain.hg")
@@ -241,7 +241,7 @@ func GetDomains(filePath string) (map[string][]int, map[string]int) {
 	scanner := bufio.NewScanner(file)
 	var line string
 	m := make(map[string][]int)
-	result := make(map[string]int)
+	var variables []string
 	for scanner.Scan() {
 		variable := scanner.Text()
 		scanner.Scan()
@@ -252,11 +252,11 @@ func GetDomains(filePath string) (map[string][]int, map[string]int) {
 			values = append(values, i)
 		}
 		m[variable] = values
-		result[variable] = -1
+		variables = append(variables, variable)
 	}
 	err = file.Close()
 	if err != nil {
 		panic(err)
 	}
-	return m, result
+	return m, variables
 }
