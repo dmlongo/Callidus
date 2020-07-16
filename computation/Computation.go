@@ -3,6 +3,7 @@ package computation
 import (
 	. "../../CSP_Project/constraint"
 	. "../../CSP_Project/hyperTree"
+	"fmt"
 	"strings"
 
 	"os"
@@ -26,16 +27,33 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 	}
 	wg := &sync.WaitGroup{}
 	wg.Add(len(nodes))
-	for i, node := range nodes {
-		c := make(chan string, 1)
+	c := make(chan []string, len(nodes))
+	for index, node := range nodes {
 		if parallel {
-			go createAndSolveSubCSP(node, domains, constraints, wg, c, inMemory, solver) //TODO: gestire possibile overhead
+			go createAndSolveSubCSP(node, domains, constraints, wg, c, inMemory, solver, index) //TODO: gestire possibile overhead
 		} else {
-			createAndSolveSubCSP(node, domains, constraints, wg, c, inMemory, solver)
+			createAndSolveSubCSP(node, domains, constraints, wg, c, inMemory, solver, index)
 		}
-		if inMemory {
-			sol := <-c
-			solutions[i] = sol
+	}
+	cont := 0
+	if inMemory {
+		exit := false
+		for !exit {
+
+			select {
+			case sol := <-c:
+				index, e := strconv.Atoi(sol[1])
+				if e != nil {
+					fmt.Println(e.Error())
+				}
+				solutions[index] = sol[0]
+				cont++
+				if cont == len(nodes) {
+					exit = true
+					break
+				}
+
+			}
 		}
 	}
 	wg.Wait()
@@ -43,7 +61,7 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 }
 
 func createAndSolveSubCSP(node *Node, domains map[string][]int, constraints []*Constraint, wg *sync.WaitGroup,
-	c chan string, inMemory bool, solver string) {
+	c chan []string, inMemory bool, solver string, index int) {
 	defer wg.Done()
 	fileName := "subCSP/" + strconv.Itoa(node.Id) + ".xml"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
@@ -69,7 +87,10 @@ func createAndSolveSubCSP(node *Node, domains map[string][]int, constraints []*C
 	result := solve(fileName, inMemory, solver)
 
 	if inMemory {
-		c <- result
+		returnValue := make([]string, 2)
+		returnValue[0] = result
+		returnValue[1] = strconv.Itoa(index)
+		c <- returnValue
 	}
 }
 
@@ -183,7 +204,7 @@ func solve(fileName string, inMemory bool, solver string) string {
 	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
 	var cmd *exec.Cmd
 	if solver == "Nacre" {
-		cmd = exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
+		cmd = exec.Command("./libs/nacreWSL", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
 	} else if solver == "AbsCon" {
 		cmd = exec.Command("java", "-cp", "./libs/AbsCon.jar", "AbsCon", fileName, "-s=all")
 	} else {
