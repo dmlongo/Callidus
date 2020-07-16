@@ -12,7 +12,8 @@ import (
 )
 
 //TODO: testare se è meglio una goroutine per ogni nodo oppure se è meglio suddividere il file in pezzi
-func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nodes []*Node, inMemory bool, solver string) []string {
+func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nodes []*Node, inMemory bool,
+	solver string, parallel bool) []string {
 	//doNacreMakeFile() //se la scelta del solver è nacre
 	solutions := make([]string, len(nodes))
 	err := os.RemoveAll("subCSP")
@@ -27,7 +28,11 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 	wg.Add(len(nodes))
 	for i, node := range nodes {
 		c := make(chan string, 1)
-		go createAndSolveSubCSP(node, domains, constraints, wg, c, inMemory, solver) //TODO: gestire possibile overhead
+		if parallel {
+			go createAndSolveSubCSP(node, domains, constraints, wg, c, inMemory, solver) //TODO: gestire possibile overhead
+		} else {
+			createAndSolveSubCSP(node, domains, constraints, wg, c, inMemory, solver)
+		}
 		if inMemory {
 			sol := <-c
 			solutions[i] = sol

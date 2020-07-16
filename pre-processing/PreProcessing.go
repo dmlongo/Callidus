@@ -24,7 +24,7 @@ func HypergraphTranslation(filePath string) {
 	}
 }
 
-func HypertreeDecomposition(filePath string) {
+func HypertreeDecomposition(filePath string, algorithm string) {
 	var hypergraphPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		hypergraphPath = strings.ReplaceAll(filePath, ".xml", "hypergraph.hg")
@@ -39,7 +39,12 @@ func HypertreeDecomposition(filePath string) {
 	case "linux":
 		name = "./libs/balancedLinux"
 	}
-	cmd := exec.Command(name, "-exact", "-graph", hypergraphPath, "-det", "-gml", "output/hypertree")
+	var cmd *exec.Cmd
+	if algorithm == "det" {
+		cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det", "-gml", "output/hypertree")
+	} else if algorithm == "balDet" {
+		cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1", "-gml", "output/hypertree")
+	}
 	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
