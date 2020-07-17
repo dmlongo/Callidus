@@ -1,21 +1,21 @@
 package tests
 
 import (
-	. "../../CSP_Project/computation"
-	. "../../CSP_Project/hyperTree"
+	. "../../Callidus/computation"
+	. "../../Callidus/hyperTree"
 	"testing"
 )
 
 func Test1(t *testing.T) {
 	input, output := test1Data()
-	if !equals(ParallelYannakaki(input), output) {
+	if !equals(Yannakaki(input, true), output) {
 		t.Error()
 	}
 }
 
 func Test2(t *testing.T) {
 	input, output := test2Data()
-	if !equals(ParallelYannakaki(input), output) {
+	if !equals(Yannakaki(input, true), output) {
 		t.Error()
 	}
 }

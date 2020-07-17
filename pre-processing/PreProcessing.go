@@ -1,8 +1,8 @@
 package pre_processing
 
 import (
-	. "../../CSP_Project/constraint"
-	. "../../CSP_Project/hyperTree"
+	. "../../Callidus/constraint"
+	. "../../Callidus/hyperTree"
 	"bufio"
 	"fmt"
 	"os"

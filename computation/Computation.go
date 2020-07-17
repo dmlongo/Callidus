@@ -1,8 +1,8 @@
 package computation
 
 import (
-	. "../../CSP_Project/constraint"
-	. "../../CSP_Project/hyperTree"
+	. "../../Callidus/constraint"
+	. "../../Callidus/hyperTree"
 	"fmt"
 	"os"
 	"os/exec"

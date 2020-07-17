@@ -1,10 +1,10 @@
 package main
 
 import (
-	. "../CSP_Project/computation"
-	. "../CSP_Project/constraint"
-	. "../CSP_Project/hyperTree"
-	. "../CSP_Project/pre-processing"
+	. "../Callidus/computation"
+	. "../Callidus/constraint"
+	. "../Callidus/hyperTree"
+	. "../Callidus/pre-processing"
 	"fmt"
 	"os"
 	"strings"
@@ -15,6 +15,9 @@ import (
 type Result map[string]int
 
 func main() {
+	if len(os.Args) == 0 {
+		panic("The first parameter must be an xml file or lzma file")
+	}
 	args := os.Args[1:]
 	filePath := args[0]
 	if !strings.HasSuffix(filePath, ".xml") && !strings.HasSuffix(filePath, ".lzma") {
@@ -27,6 +30,7 @@ func main() {
 	debugOption := selectDebugOption(args)
 	parallelSubComputation := selectSubComputationExec(args)
 	balancedAlgorithm := selectBalancedAlgorithm(args)
+	printSol := selectPrintSol(args)
 
 	fmt.Println("Start")
 	start := time.Now()
@@ -115,31 +119,33 @@ func main() {
 	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
 	fmt.Println("ended in ", time.Since(start))
 
-	var results []*Result
-	for _, node := range nodes {
-		for indexResult, arrayNodeSingleResult := range node.PossibleValues {
-			if len(results) <= indexResult {
-				res := make(Result)
-				for indexVariable, singleValue := range arrayNodeSingleResult {
-					res[node.Variables[indexVariable]] = singleValue
+	if printSol {
+		var results []*Result
+		for _, node := range nodes {
+			for indexResult, arrayNodeSingleResult := range node.PossibleValues {
+				if len(results) <= indexResult {
+					res := make(Result)
+					for indexVariable, singleValue := range arrayNodeSingleResult {
+						res[node.Variables[indexVariable]] = singleValue
+					}
+					results = append(results, &res)
+				} else {
+					res := results[indexResult]
+					for indexVariable, singleValue := range arrayNodeSingleResult {
+						(*res)[node.Variables[indexVariable]] = singleValue
+					}
 				}
-				results = append(results, &res)
-			} else {
-				res := results[indexResult]
-				for indexVariable, singleValue := range arrayNodeSingleResult {
-					(*res)[node.Variables[indexVariable]] = singleValue
-				}
-			}
 
+			}
 		}
-	}
-	if len(results) > 0 {
-		fmt.Println("SOLUTIONS:")
-		for _, result := range results {
-			fmt.Println(result)
+		if len(results) > 0 {
+			fmt.Println("SOLUTIONS:")
+			for _, result := range results {
+				fmt.Println(*result)
+			}
+		} else {
+			fmt.Println("NO SOLUTIONS")
 		}
-	} else {
-		fmt.Println("NO SOLUTIONS")
 	}
 }
 
@@ -230,4 +236,16 @@ func selectBalancedAlgorithm(args []string) string {
 		return args[i+1]
 	}
 	return "balDet"
+}
+
+func selectPrintSol(args []string) bool {
+	if i := contains(args, "-printSol"); i != -1 {
+		if args[i+1] != "yes" && args[i+1] != "no" {
+			panic(args[i] + " must be followed by 'yes' or 'no'")
+		}
+		if args[i+1] == "no" {
+			return false
+		}
+	}
+	return true
 }

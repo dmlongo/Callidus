@@ -1,7 +1,7 @@
 package computation
 
 import (
-	. "../../CSP_Project/hyperTree"
+	. "../../Callidus/hyperTree"
 	"sync"
 )
 
