@@ -15,7 +15,7 @@ import (
 type Result map[string]int
 
 func main() {
-	if len(os.Args) == 0 {
+	if len(os.Args) == 1 {
 		panic("The first parameter must be an xml file or lzma file")
 	}
 	args := os.Args[1:]
