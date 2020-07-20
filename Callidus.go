@@ -7,6 +7,7 @@ import (
 	. "../Callidus/pre-processing"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -23,7 +24,6 @@ func main() {
 	if !strings.HasSuffix(filePath, ".xml") && !strings.HasSuffix(filePath, ".lzma") {
 		panic("The first parameter must be an xml file or lzma file")
 	}
-	hypertreeFile := takeHypertreeFile(args)
 	yannakakiVersion := selectYannakakiVersion(args) //true if parallel, false if sequential
 	inMemory := selectComputation(args)              // -i for computation in memory, inMemory = true or inMemory = false if not
 	solver := selectSolver(args)
@@ -38,13 +38,15 @@ func main() {
 	fmt.Println("creating hypergraph")
 	startTranslation := time.Now()
 	HypergraphTranslation(filePath)
-	fmt.Println("hypergraph in ", time.Since(startTranslation))
+	fmt.Println("hypergraph created in ", time.Since(startTranslation))
+	folderName := getFolderName(filePath)
 
+	hypertreeFile := takeHypertreeFile(args, "output"+folderName)
 	hyperTreeRaw := ""
-	if hypertreeFile == "output/hypertree" {
+	if hypertreeFile == "output"+folderName+"hypertree" {
 		fmt.Println("decomposing hypertree")
 		startDecomposition := time.Now()
-		hyperTreeRaw = HypertreeDecomposition(filePath, balancedAlgorithm, inMemory)
+		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+folderName, balancedAlgorithm, inMemory)
 		fmt.Println("hypertree decomposed in ", time.Since(startDecomposition))
 	}
 
@@ -70,7 +72,7 @@ func main() {
 	go func() {
 		fmt.Println("parsing domain")
 		startDomainParsing := time.Now()
-		domains, variables = GetDomains(filePath)
+		domains, variables = GetDomains(filePath, "output"+folderName)
 		fmt.Println("domain parsed in ", time.Since(startDomainParsing))
 		wg.Done()
 	}()
@@ -79,14 +81,14 @@ func main() {
 	go func() {
 		fmt.Println("reading constraints")
 		startConstraintsParsing := time.Now()
-		constraints = GetConstraints(filePath)
+		constraints = GetConstraints(filePath, "output"+folderName)
 		fmt.Println("constraints taken in ", time.Since(startConstraintsParsing))
 		wg.Done()
 	}()
 
 	wg.Wait()
 	if !debugOption {
-		err := os.RemoveAll("output")
+		err := os.RemoveAll("output" + folderName)
 		if err != nil {
 			panic(err)
 		}
@@ -94,12 +96,12 @@ func main() {
 
 	fmt.Println("starting sub csp computation")
 	startSubComputation := time.Now()
-	solutions := SubCSP_Computation(domains, constraints, nodes, inMemory, solver, parallelSubComputation)
+	solutions := SubCSP_Computation("subCSP-"+folderName, domains, constraints, nodes, inMemory, solver, parallelSubComputation)
 	fmt.Println("sub csp computed in ", time.Since(startSubComputation))
 
 	fmt.Println("adding tables to nodes")
 	startAddingTables := time.Now()
-	satisfiable := AttachPossibleSolutions(nodes, &solutions, inMemory, solver)
+	satisfiable := AttachPossibleSolutions("subCSP-"+folderName, nodes, &solutions, inMemory, solver)
 	if !satisfiable {
 		fmt.Println("NO SOLUTIONS")
 		return
@@ -107,7 +109,7 @@ func main() {
 	fmt.Println("tables added in ", time.Since(startAddingTables))
 
 	if !debugOption {
-		err := os.RemoveAll("subCSP")
+		err := os.RemoveAll("subCSP-" + folderName)
 		if err != nil {
 			panic(err)
 		}
@@ -158,7 +160,7 @@ func contains(args []string, param string) int {
 	return -1
 }
 
-func takeHypertreeFile(args []string) string {
+func takeHypertreeFile(args []string, folderName string) string {
 	i := contains(args, "-h")
 	if i == -1 {
 		i = contains(args, "--hypertree")
@@ -166,7 +168,7 @@ func takeHypertreeFile(args []string) string {
 	if i != -1 {
 		return args[i+1]
 	}
-	return "output/hypertree"
+	return folderName + "hypertree"
 }
 
 func selectYannakakiVersion(args []string) bool {
@@ -248,4 +250,13 @@ func selectPrintSol(args []string) bool {
 		}
 	}
 	return true
+}
+
+func getFolderName(filePath string) string {
+	re := regexp.MustCompile(".*" + string(os.PathSeparator))
+	folderName := re.ReplaceAllString(filePath, "")
+	re = regexp.MustCompile("\\..*")
+	folderName = re.ReplaceAllString(folderName, "")
+	folderName = folderName + string(os.PathSeparator)
+	return folderName
 }

@@ -12,15 +12,15 @@ import (
 )
 
 //TODO: testare se è meglio una goroutine per ogni nodo oppure se è meglio suddividere il file in pezzi
-func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nodes []*Node, inMemory bool,
+func SubCSP_Computation(folderName string, domains map[string][]int, constraints []*Constraint, nodes []*Node, inMemory bool,
 	solver string, parallel bool) []string {
 	//doNacreMakeFile() //se la scelta del solver è nacre
 	solutions := make([]string, len(nodes))
-	err := os.RemoveAll("subCSP")
+	err := os.RemoveAll(folderName)
 	if err != nil {
 		panic(err)
 	}
-	err = os.Mkdir("subCSP", 0777)
+	err = os.Mkdir(folderName, 0777)
 	if err != nil {
 		panic(err)
 	}
@@ -29,9 +29,9 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 	c := make(chan []string, len(nodes))
 	for index, node := range nodes {
 		if parallel {
-			go createAndSolveSubCSP(node, domains, constraints, wg, c, inMemory, solver, index) //TODO: gestire possibile overhead
+			go createAndSolveSubCSP(folderName, node, domains, constraints, wg, c, inMemory, solver, index) //TODO: gestire possibile overhead
 		} else {
-			createAndSolveSubCSP(node, domains, constraints, wg, c, inMemory, solver, index)
+			createAndSolveSubCSP(folderName, node, domains, constraints, wg, c, inMemory, solver, index)
 		}
 	}
 	cont := 0
@@ -59,10 +59,10 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 	return solutions
 }
 
-func createAndSolveSubCSP(node *Node, domains map[string][]int, constraints []*Constraint, wg *sync.WaitGroup,
+func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]int, constraints []*Constraint, wg *sync.WaitGroup,
 	c chan []string, inMemory bool, solver string, index int) {
 	defer wg.Done()
-	fileName := "subCSP/" + strconv.Itoa(node.Id) + ".xml"
+	fileName := folderName + strconv.Itoa(node.Id) + ".xml"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
 	if err != nil {
 		panic(err)

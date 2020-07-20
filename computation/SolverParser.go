@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func AttachPossibleSolutions(nodes []*Node, solutions *[]string, inMemory bool, solver string) bool {
+func AttachPossibleSolutions(folderName string, nodes []*Node, solutions *[]string, inMemory bool, solver string) bool {
 	exit := make(chan bool, 100)
 	defer close(exit)
 	regSol, regNumSol := parseSolver(solver)
@@ -18,7 +18,7 @@ func AttachPossibleSolutions(nodes []*Node, solutions *[]string, inMemory bool, 
 			sol := (*solutions)[i]
 			go attachSingleNodeInMemory(node, &exit, &sol, regSol, regNumSol)
 		} else {
-			go attachSingleNode(node, &exit, regSol, regNumSol)
+			go attachSingleNode(folderName, node, &exit, regSol, regNumSol)
 		}
 
 	}
@@ -39,8 +39,8 @@ func AttachPossibleSolutions(nodes []*Node, solutions *[]string, inMemory bool, 
 	return true
 }
 
-func attachSingleNode(node *Node, exit *chan bool, regSol *regexp.Regexp, regNumSol *regexp.Regexp) {
-	file, err := os.Open("subCSP/" + strconv.Itoa(node.Id) + "sol.txt")
+func attachSingleNode(folderName string, node *Node, exit *chan bool, regSol *regexp.Regexp, regNumSol *regexp.Regexp) {
+	file, err := os.Open(folderName + strconv.Itoa(node.Id) + "sol.txt")
 	defer file.Close()
 	if err != nil {
 		panic(err)

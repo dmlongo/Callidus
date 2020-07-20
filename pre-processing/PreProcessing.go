@@ -4,6 +4,7 @@ import (
 	. "../../Callidus/constraint"
 	. "../../Callidus/hyperTree"
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,19 +20,24 @@ func HypergraphTranslation(filePath string) {
 		panic(err)
 	}
 	cmd := exec.Command("java", "-jar", "libs/HypergraphTranslation.jar", "-convert", "-csp", filePath)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
 	if err = cmd.Run(); err != nil {
-		panic(err)
+		panic(fmt.Sprint(err) + ": " + stderr.String())
 	}
 }
 
-func HypertreeDecomposition(filePath string, algorithm string, inMemory bool) string {
+func HypertreeDecomposition(filePath string, folderName string, algorithm string, inMemory bool) string {
 	var hypergraphPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		hypergraphPath = strings.ReplaceAll(filePath, ".xml", "hypergraph.hg")
 	} else if strings.HasSuffix(filePath, ".lzma") {
 		hypergraphPath = strings.ReplaceAll(filePath, ".lzma", "hypergraph.hg")
 	}
-	hypergraphPath = fmt.Sprintf("output/" + hypergraphPath)
+	hypergraphPath = fmt.Sprintf(folderName + hypergraphPath)
+
 	var name string
 	switch runtime.GOOS {
 	case "windows":
@@ -48,18 +54,26 @@ func HypertreeDecomposition(filePath string, algorithm string, inMemory bool) st
 			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1")
 		}
 		byte, err := cmd.Output()
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &stderr
 		if err != nil {
-			panic(err)
+			panic(fmt.Sprint(err) + ": " + stderr.String())
 		}
 		return string(byte)
 	} else {
 		if algorithm == "det" {
-			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det", "-gml", "output/hypertree")
+			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det", "-gml", folderName+"hypertree")
 		} else if algorithm == "balDet" {
-			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1", "-gml", "output/hypertree")
+			cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1", "-gml", folderName+"hypertree")
 		}
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
-			panic(err)
+			panic(fmt.Sprint(err) + ": " + stderr.String())
 		}
 		return ""
 	}
@@ -157,14 +171,14 @@ func GetHyperTreeInMemory(filePath string, hyperTreeRaw *string) (*Node, []*Node
 	return root, onlyNodes
 }
 
-func GetConstraints(filePath string) []*Constraint {
+func GetConstraints(filePath string, folderName string) []*Constraint {
 	var tablesPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		tablesPath = strings.ReplaceAll(filePath, ".xml", "tables.hg")
 	} else if strings.HasSuffix(filePath, ".lzma") {
 		tablesPath = strings.ReplaceAll(filePath, ".lzma", "tables.hg")
 	}
-	tablesPath = fmt.Sprintf("output/" + tablesPath)
+	tablesPath = fmt.Sprintf(folderName + tablesPath)
 	file, err := os.Open(tablesPath)
 	if err != nil {
 		panic(err)
@@ -226,14 +240,14 @@ func GetConstraints(filePath string) []*Constraint {
 	return constraints
 }
 
-func GetDomains(filePath string) (map[string][]int, []string) {
+func GetDomains(filePath string, folderName string) (map[string][]int, []string) {
 	var domainPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		domainPath = strings.ReplaceAll(filePath, ".xml", "domain.hg")
 	} else if strings.HasSuffix(filePath, ".lzma") {
 		domainPath = strings.ReplaceAll(filePath, ".lzma", "domain.hg")
 	}
-	domainPath = fmt.Sprintf("output/" + domainPath)
+	domainPath = fmt.Sprintf(folderName + domainPath)
 	file, err := os.Open(domainPath)
 	if err != nil {
 		panic(err)
