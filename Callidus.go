@@ -32,7 +32,12 @@ func main() {
 	balancedAlgorithm := selectBalancedAlgorithm(args)
 	printSol := selectPrintSol(args)
 
-	fmt.Println("Start")
+	fmt.Println("Giving the whole instance to the solver...")
+	startSolver := time.Now()
+	Solve(filePath, inMemory, solver)
+	fmt.Println("The whole instance has been solved in ", time.Since(startSolver))
+
+	fmt.Println("Start Callidus")
 	start := time.Now()
 
 	fmt.Println("creating hypergraph")
