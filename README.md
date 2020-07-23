@@ -17,3 +17,6 @@ possible options:
 -b | --balanced followed by 'det' or 'balDet' to choose the algorithm of BalancedGo
 
 -printSol followed by yes or no for the final print of solutions
+
+-computeWidth followed by yes or no for do the width computation apart from the decomposition
+

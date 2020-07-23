@@ -83,7 +83,7 @@ func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]in
 		panic(err)
 	}
 
-	result := Solve(fileName, inMemory, solver)
+	result := solve(fileName, inMemory, solver)
 
 	if inMemory {
 		returnValue := make([]string, 2)
@@ -199,7 +199,7 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func Solve(fileName string, inMemory bool, solver string) string {
+func solve(fileName string, inMemory bool, solver string) string {
 	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
 	var cmd *exec.Cmd
 	if solver == "Nacre" {

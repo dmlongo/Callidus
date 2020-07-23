@@ -31,11 +31,7 @@ func main() {
 	parallelSubComputation := selectSubComputationExec(args)
 	balancedAlgorithm := selectBalancedAlgorithm(args)
 	printSol := selectPrintSol(args)
-
-	fmt.Println("Giving the whole instance to the solver...")
-	startSolver := time.Now()
-	Solve(filePath, inMemory, solver)
-	fmt.Println("The whole instance has been solved in ", time.Since(startSolver))
+	computeWidth := selectComputeWidth(args)
 
 	fmt.Println("Start Callidus")
 	start := time.Now()
@@ -51,7 +47,7 @@ func main() {
 	if hypertreeFile == "output"+folderName+"hypertree" {
 		fmt.Println("decomposing hypertree")
 		startDecomposition := time.Now()
-		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+folderName, balancedAlgorithm, inMemory)
+		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+folderName, balancedAlgorithm, inMemory, computeWidth)
 		fmt.Println("hypertree decomposed in ", time.Since(startDecomposition))
 	}
 
@@ -264,4 +260,16 @@ func getFolderName(filePath string) string {
 	folderName = re.ReplaceAllString(folderName, "")
 	folderName = folderName + string(os.PathSeparator)
 	return folderName
+}
+
+func selectComputeWidth(args []string) bool {
+	if i := contains(args, "-computeWidth"); i != -1 {
+		if args[i+1] != "yes" && args[i+1] != "no" {
+			panic(args[i] + " must be followed by 'yes' or 'no'")
+		}
+		if args[i+1] == "yes" {
+			return true
+		}
+	}
+	return false
 }
