@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +33,7 @@ func main() {
 	balancedAlgorithm := selectBalancedAlgorithm(args)
 	printSol := selectPrintSol(args)
 	computeWidth := selectComputeWidth(args)
+	outputFile := writeSolution(args)
 
 	fmt.Println("Start Callidus")
 	start := time.Now()
@@ -142,9 +144,24 @@ func main() {
 			}
 		}
 		if len(results) > 0 {
-			fmt.Println("SOLUTIONS:")
-			for _, result := range results {
-				fmt.Println(*result)
+			if outputFile == "" {
+				fmt.Println("SOLUTIONS:")
+				for _, result := range results {
+					fmt.Println(*result)
+				}
+			} else {
+				file, err := os.OpenFile(outputFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+				if err != nil {
+					panic(err)
+				}
+				for _, result := range results {
+					for key, value := range *result {
+						_, err = file.WriteString(key + " -> " + strconv.Itoa(value) + "\n")
+						if err != nil {
+							panic(err)
+						}
+					}
+				}
 			}
 		} else {
 			fmt.Println("NO SOLUTIONS")
@@ -182,11 +199,11 @@ func selectYannakakiVersion(args []string) bool {
 		if version != "s" && version != "p" {
 			panic(args[i] + " must be followed by 's' or 'p'")
 		}
-		if version == "s" {
-			return false
+		if version == "p" {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func selectComputation(args []string) bool {
@@ -238,7 +255,7 @@ func selectBalancedAlgorithm(args []string) string {
 		}
 		return args[i+1]
 	}
-	return "balDet"
+	return "det"
 }
 
 func selectPrintSol(args []string) bool {
@@ -254,11 +271,11 @@ func selectPrintSol(args []string) bool {
 }
 
 func getFolderName(filePath string) string {
-	re := regexp.MustCompile(".*" + string(os.PathSeparator))
+	re := regexp.MustCompile(".*/")
 	folderName := re.ReplaceAllString(filePath, "")
 	re = regexp.MustCompile("\\..*")
 	folderName = re.ReplaceAllString(folderName, "")
-	folderName = folderName + string(os.PathSeparator)
+	folderName = folderName + "/"
 	return folderName
 }
 
@@ -272,4 +289,11 @@ func selectComputeWidth(args []string) bool {
 		}
 	}
 	return false
+}
+
+func writeSolution(args []string) string {
+	if i := contains(args, "-output"); i != -1 {
+		return args[i+1]
+	}
+	return ""
 }

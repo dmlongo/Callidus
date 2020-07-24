@@ -4,7 +4,7 @@ possible options:
 
 -h | --hypertree followed by the file name containing the hypertree
 
--y | --yannakaki followed by 's' or 'p' for a sequential or parallel execution. (p as default)
+-y | --yannakaki followed by 's' or 'p' for a sequential or parallel execution. (s as default)
 
 -i for activate the in-memory computation for the sub_CSP
 
@@ -19,4 +19,6 @@ possible options:
 -printSol followed by yes or no for the final print of solutions
 
 -computeWidth followed by yes or no for do the width computation apart from the decomposition
+
+-output followed by the file name if you want to write the solution on a file
 

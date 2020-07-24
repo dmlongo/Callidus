@@ -82,7 +82,6 @@ func HypertreeDecomposition(filePath string, folderName string, algorithm string
 		return string(byte)
 	} else {
 		if computeWidth {
-			fmt.Println(hypergraphPath)
 			cmd = exec.Command(name, "-width", width, "-graph", hypergraphPath, "-det", "-gml", folderName+"hypertree")
 		} else {
 			if algorithm == "det" {
