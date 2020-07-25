@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func HypergraphTranslation(filePath string) {
@@ -123,7 +124,7 @@ func GetHyperTree(filePath string) (*Node, []*Node) {
 			reg = regexp.MustCompile("label \"{(.*)}\\s+{(.*)}\".*")
 			res = reg.FindStringSubmatch(line)
 			variables := strings.Split(res[2], ", ")
-			node := Node{Id: id, Variables: variables}
+			node := Node{Id: id, Variables: variables, Lock: &sync.Mutex{}}
 			nodes[id] = &node
 			onlyNodes = append(onlyNodes, &node)
 		} else if strings.Contains(line, "edge") {
@@ -138,6 +139,7 @@ func GetHyperTree(filePath string) (*Node, []*Node) {
 			res = reg.FindStringSubmatch(line)
 			target, _ := strconv.Atoi(res[1])
 			nodes[source].AddSon(nodes[target])
+			nodes[target].Father = nodes[source]
 		}
 	}
 	var root *Node
@@ -170,7 +172,7 @@ func GetHyperTreeInMemory(filePath string, hyperTreeRaw *string) (*Node, []*Node
 			if len(fathersQueue) > 0 {
 				nodeFather = fathersQueue[len(fathersQueue)-1]
 			}
-			node := Node{Id: idNodes, Variables: variables, Father: nodeFather}
+			node := Node{Id: idNodes, Variables: variables, Father: nodeFather, Lock: &sync.Mutex{}}
 			if nodeFather != nil {
 				nodeFather.AddSon(&node)
 			}

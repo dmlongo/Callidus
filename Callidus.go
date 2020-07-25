@@ -147,7 +147,9 @@ func main() {
 			if outputFile == "" {
 				fmt.Println("SOLUTIONS:")
 				for _, result := range results {
-					fmt.Println(*result)
+					if len(*result) == len(variables) {
+						fmt.Println(*result)
+					}
 				}
 			} else {
 				file, err := os.OpenFile(outputFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
@@ -284,11 +286,11 @@ func selectComputeWidth(args []string) bool {
 		if args[i+1] != "yes" && args[i+1] != "no" {
 			panic(args[i] + " must be followed by 'yes' or 'no'")
 		}
-		if args[i+1] == "yes" {
-			return true
+		if args[i+1] == "no" {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func writeSolution(args []string) string {

@@ -57,37 +57,30 @@ func sequentialTopDown(actual *Node, joiningIndex *MyMap) {
 }
 
 func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
-	var wg sync.WaitGroup
+	var wg *sync.WaitGroup = &sync.WaitGroup{}
 	for _, son := range actual.Sons {
-		s := son
-		if len(son.Sons) != 0 {
+		if len(son.Sons) != 0 && len(actual.Sons) > 1 {
 			wg.Add(1)
-			go func() {
+			go func(s *Node) {
 				parallelBottomUp(s, joiningIndex)
 				wg.Done()
-			}()
+			}(son)
 		} else {
-			parallelBottomUp(s, joiningIndex)
+			parallelBottomUp(son, joiningIndex)
 		}
 	}
 	wg.Wait()
 	if actual.Father != nil {
+		actual.Father.Lock.Lock()
 		doSemiJoin(actual, actual.Father, joiningIndex)
+		actual.Father.Lock.Unlock()
 	}
 }
-
 func parallelTopDown(actual *Node, joiningIndex *MyMap) {
-	var wg sync.WaitGroup
-	wg.Add(len(actual.Sons))
 	for _, son := range actual.Sons {
-		s := son
-		doSemiJoin(actual, s, joiningIndex)
-		go func() {
-			parallelTopDown(s, joiningIndex)
-			wg.Done()
-		}()
+		doSemiJoin(actual, son, joiningIndex)
+		go parallelTopDown(son, joiningIndex)
 	}
-	wg.Wait()
 }
 
 // the left node performs the semi join on the right node and update the right's table
