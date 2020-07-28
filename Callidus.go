@@ -14,8 +14,6 @@ import (
 	"time"
 )
 
-type Result map[string]int
-
 func main() {
 	if len(os.Args) == 1 {
 		panic("The first parameter must be an xml file or lzma file")
@@ -125,50 +123,68 @@ func main() {
 	fmt.Println("ended in ", time.Since(start))
 
 	if printSol {
-		var results []*Result
-		for _, node := range nodes {
-			for indexResult, arrayNodeSingleResult := range node.PossibleValues {
-				if len(results) <= indexResult {
-					res := make(Result)
-					for indexVariable, singleValue := range arrayNodeSingleResult {
-						res[node.Variables[indexVariable]] = singleValue
-					}
-					results = append(results, &res)
-				} else {
-					res := results[indexResult]
-					for indexVariable, singleValue := range arrayNodeSingleResult {
-						(*res)[node.Variables[indexVariable]] = singleValue
-					}
-				}
+		result := createResult(nodes)
+		printSolution(result, outputFile)
+	}
+}
 
+func printSolution(result map[string][]int, outputFile string) {
+	if len(result) > 0 {
+		if outputFile == "" {
+			fmt.Println("SOLUTIONS FOUND: " + strconv.Itoa(len(result)) + "\n")
+			//TODO: fare il prodotto cartesiano
+		} else {
+			file, err := os.OpenFile(outputFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+			if err != nil {
+				panic(err)
 			}
-		}
-		if len(results) > 0 {
-			if outputFile == "" {
-				fmt.Println("SOLUTIONS:")
-				for _, result := range results {
-					if len(*result) == len(variables) {
-						fmt.Println(*result)
-					}
-				}
-			} else {
-				file, err := os.OpenFile(outputFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+			for key, value := range result {
+				_, err = file.WriteString(key + " ->")
 				if err != nil {
 					panic(err)
 				}
-				for _, result := range results {
-					for key, value := range *result {
-						_, err = file.WriteString(key + " -> " + strconv.Itoa(value) + "\n")
-						if err != nil {
-							panic(err)
-						}
+				for _, v := range value {
+					_, err = file.WriteString(" " + strconv.Itoa(v))
+					if err != nil {
+						panic(err)
 					}
 				}
+				_, err = file.WriteString("\n")
+				if err != nil {
+					panic(err)
+				}
 			}
-		} else {
-			fmt.Println("NO SOLUTIONS")
+		}
+	} else {
+		fmt.Println("NO SOLUTIONS")
+	}
+}
+
+//TODO: in parallel?
+func createResult(nodes []*Node) map[string][]int {
+	result := make(map[string][]int)
+	for _, node := range nodes {
+		for index, key := range node.Variables {
+			if _, exist := result[key]; !exist {
+				result[key] = taleColumn(node.PossibleValues, index)
+			}
 		}
 	}
+	return result
+}
+
+func taleColumn(matrix [][]int, index int) []int {
+	used := make(map[int]struct{})
+	for _, row := range matrix {
+		if _, exist := used[row[index]]; !exist {
+			used[row[index]] = struct{}{}
+		}
+	}
+	col := make([]int, 0, len(used))
+	for k := range used {
+		col = append(col, k)
+	}
+	return col
 }
 
 func contains(args []string, param string) int {

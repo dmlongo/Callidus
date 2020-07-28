@@ -20,5 +20,5 @@ possible options:
 
 -computeWidth followed by yes or no for do the width computation apart from the decomposition
 
--output followed by the file name if you want to write the solution on a file
+-output followed by the file name if you want to write the solution on a file. N.B. the structure is will be different
 
