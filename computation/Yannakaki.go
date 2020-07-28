@@ -86,7 +86,7 @@ func parallelTopDown(actual *Node, joiningIndex *MyMap) {
 // the left node performs the semi join on the right node and update the right's table
 //TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
 func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap) {
-	indexJoin := make([][]int, 0)
+	/*indexJoin := make([][]int, 0)
 	joiningIndex.lock.RLock()
 	val, ok := joiningIndex.hash[IdJoiningIndex{x: left.Id, y: right.Id}]
 	joiningIndex.lock.RUnlock()
@@ -127,5 +127,5 @@ func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap) {
 		if !trashRow[i] {
 			right.PossibleValues = delByIndex(i, right.PossibleValues)
 		}
-	}
+	}*/
 }

@@ -3,7 +3,9 @@ package computation
 import (
 	. "../../Callidus/constraint"
 	. "../../Callidus/hyperTree"
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -12,10 +14,8 @@ import (
 )
 
 //TODO: testare se è meglio una goroutine per ogni nodo oppure se è meglio suddividere il file in pezzi
-func SubCSP_Computation(folderName string, domains map[string][]int, constraints []*Constraint, nodes []*Node, inMemory bool,
-	solver string, parallel bool) []string {
+func SubCSP_Computation(folderName string, domains map[string][]int, constraints []*Constraint, nodes []*Node, parallel bool) {
 	//doNacreMakeFile() //se la scelta del solver è nacre
-	solutions := make([]string, len(nodes))
 	err := os.RemoveAll(folderName)
 	if err != nil {
 		panic(err)
@@ -26,41 +26,17 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 	}
 	wg := &sync.WaitGroup{}
 	wg.Add(len(nodes))
-	c := make(chan []string, len(nodes))
-	for index, node := range nodes {
+	for _, node := range nodes {
 		if parallel {
-			go createAndSolveSubCSP(folderName, node, domains, constraints, wg, c, inMemory, solver, index) //TODO: gestire possibile overhead
+			go createAndSolveSubCSP(folderName, node, domains, constraints, wg) //TODO: gestire possibile overhead
 		} else {
-			createAndSolveSubCSP(folderName, node, domains, constraints, wg, c, inMemory, solver, index)
-		}
-	}
-	cont := 0
-	if inMemory {
-		exit := false
-		for !exit {
-
-			select {
-			case sol := <-c:
-				index, e := strconv.Atoi(sol[1])
-				if e != nil {
-					fmt.Println(e.Error())
-				}
-				solutions[index] = sol[0]
-				cont++
-				if cont == len(nodes) {
-					exit = true
-					break
-				}
-
-			}
+			createAndSolveSubCSP(folderName, node, domains, constraints, wg)
 		}
 	}
 	wg.Wait()
-	return solutions
 }
 
-func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]int, constraints []*Constraint, wg *sync.WaitGroup,
-	c chan []string, inMemory bool, solver string, index int) {
+func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]int, constraints []*Constraint, wg *sync.WaitGroup) {
 	defer wg.Done()
 	fileName := folderName + strconv.Itoa(node.Id) + ".xml"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
@@ -83,14 +59,7 @@ func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]in
 		panic(err)
 	}
 
-	result := solve(fileName, inMemory, solver)
-
-	if inMemory {
-		returnValue := make([]string, 2)
-		returnValue[0] = result
-		returnValue[1] = strconv.Itoa(index)
-		c <- returnValue
-	}
+	solve(fileName)
 }
 
 func writeVariables(file *os.File, variables []string, domains map[string][]int) {
@@ -199,33 +168,48 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(fileName string, inMemory bool, solver string) string {
+func solve(fileName string) {
 	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
-	var cmd *exec.Cmd
-	if solver == "Nacre" {
-		cmd = exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
-	} else if solver == "AbsCon" {
-		cmd = exec.Command("java", "-cp", "./libs/AbsCon.jar", "AbsCon", fileName, "-s=all")
-	} else {
-		panic("solver not found")
+	cmd := exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		panic(err)
 	}
-	if inMemory {
-		buffer, _ := cmd.CombinedOutput()
-		return string(buffer)
-	} else {
-		outputFileName := strings.ReplaceAll(fileName, ".xml", "sol.txt")
-		outfile, err := os.Create(outputFileName)
+	reader := bufio.NewReader(out)
+	var line string
+	result := make(map[string][]int)
+	for {
+		line, err = reader.ReadString('\n')
+		if err == io.EOF && len(line) == 0 {
+			break
+		}
+		parseLine(line, result)
+	}
+	outputFileName := strings.ReplaceAll(fileName, ".xml", "sol.txt")
+	outfile, err := os.OpenFile(outputFileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+	if err != nil {
+		panic(err)
+	}
+	for key, values := range result {
+		_, err = outfile.WriteString(key + " ->")
 		if err != nil {
 			panic(err)
 		}
-		cmd.Stdout = outfile
-		err = cmd.Run()
-		err = outfile.Close()
+		for v := range values {
+			_, err = outfile.WriteString(" " + strconv.Itoa(v))
+			if err != nil {
+				panic(err)
+			}
+		}
+		_, err = outfile.WriteString("\n")
 		if err != nil {
 			panic(err)
 		}
-		return ""
 	}
+}
+
+func parseLine(line string, result map[string][]int) {
+	fmt.Println(line)
 }
 
 /*func doNacreMakeFile(){

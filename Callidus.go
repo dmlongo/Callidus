@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -27,13 +26,12 @@ func main() {
 	}
 	yannakakiVersion := selectYannakakiVersion(args) //true if parallel, false if sequential
 	inMemory := selectComputation(args)              // -i for computation in memory, inMemory = true or inMemory = false if not
-	solver := selectSolver(args)
 	debugOption := selectDebugOption(args)
 	parallelSubComputation := selectSubComputationExec(args)
 	balancedAlgorithm := selectBalancedAlgorithm(args)
-	printSol := selectPrintSol(args)
+	//printSol := selectPrintSol(args)
 	computeWidth := selectComputeWidth(args)
-	outputFile := writeSolution(args)
+	//outputFile := writeSolution(args)
 
 	fmt.Println("Start Callidus")
 	start := time.Now()
@@ -99,12 +97,12 @@ func main() {
 
 	fmt.Println("starting sub csp computation")
 	startSubComputation := time.Now()
-	solutions := SubCSP_Computation("subCSP-"+folderName, domains, constraints, nodes, inMemory, solver, parallelSubComputation)
+	SubCSP_Computation("subCSP-"+folderName, domains, constraints, nodes, parallelSubComputation)
 	fmt.Println("sub csp computed in ", time.Since(startSubComputation))
 
 	fmt.Println("adding tables to nodes")
 	startAddingTables := time.Now()
-	satisfiable := AttachPossibleSolutions("subCSP-"+folderName, nodes, &solutions, inMemory, solver)
+	satisfiable := AttachPossibleSolutions("subCSP-"+folderName, nodes)
 	if !satisfiable {
 		fmt.Println("NO SOLUTIONS")
 		return
@@ -124,7 +122,7 @@ func main() {
 	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
 	fmt.Println("ended in ", time.Since(start))
 
-	if printSol {
+	/*if printSol {
 		var results []*Result
 		for _, node := range nodes {
 			for indexResult, arrayNodeSingleResult := range node.PossibleValues {
@@ -168,7 +166,7 @@ func main() {
 		} else {
 			fmt.Println("NO SOLUTIONS")
 		}
-	}
+	}*/
 }
 
 func contains(args []string, param string) int {
@@ -214,17 +212,6 @@ func selectComputation(args []string) bool {
 		return true
 	}
 	return false
-}
-
-func selectSolver(args []string) string {
-	i := contains(args, "-s")
-	if i == -1 {
-		i = contains(args, "--solver")
-	}
-	if i != -1 {
-		return args[i+1]
-	}
-	return "Nacre"
 }
 
 func selectDebugOption(args []string) bool {

@@ -50,7 +50,7 @@ func HypertreeDecomposition(filePath string, folderName string, algorithm string
 	//TODO: we must find another way to write it
 	var width string
 	if computeWidth {
-		cmd := exec.Command("python3", "libs/widthComputation.py", hypergraphPath)
+		cmd := exec.Command("python", "libs/widthComputation.py", hypergraphPath)
 		byte, err := cmd.Output()
 		var out bytes.Buffer
 		var stderr bytes.Buffer
