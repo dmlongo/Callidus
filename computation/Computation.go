@@ -4,10 +4,10 @@ import (
 	. "../../Callidus/constraint"
 	. "../../Callidus/hyperTree"
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -177,13 +177,19 @@ func solve(fileName string) {
 	}
 	reader := bufio.NewReader(out)
 	var line string
-	result := make(map[string][]int)
+	result := make(map[string][]string)
+	err = cmd.Start()
+	if err != nil {
+		panic(err)
+	}
 	for {
 		line, err = reader.ReadString('\n')
 		if err == io.EOF && len(line) == 0 {
 			break
 		}
-		parseLine(line, result)
+		if strings.HasPrefix(line, "v") {
+			parseLine(line, result)
+		}
 	}
 	outputFileName := strings.ReplaceAll(fileName, ".xml", "sol.txt")
 	outfile, err := os.OpenFile(outputFileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
@@ -195,8 +201,8 @@ func solve(fileName string) {
 		if err != nil {
 			panic(err)
 		}
-		for v := range values {
-			_, err = outfile.WriteString(" " + strconv.Itoa(v))
+		for _, v := range values {
+			_, err = outfile.WriteString(" " + v)
 			if err != nil {
 				panic(err)
 			}
@@ -208,8 +214,13 @@ func solve(fileName string) {
 	}
 }
 
-func parseLine(line string, result map[string][]int) {
-	fmt.Println(line)
+func parseLine(line string, result map[string][]string) {
+	reg := regexp.MustCompile(".*<list> (.*) </list> <values>(.*) </values>.*")
+	keys := strings.Split(reg.FindStringSubmatch(line)[1], " ")
+	values := strings.Split(reg.FindStringSubmatch(line)[2], " ")
+	for i, k := range keys {
+		result[k] = append(result[k], values[i])
+	}
 }
 
 /*func doNacreMakeFile(){

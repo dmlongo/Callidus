@@ -7,13 +7,14 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 func AttachPossibleSolutions(folderName string, nodes []*Node) bool {
 	exit := make(chan bool, 100)
 	defer close(exit)
 	for _, node := range nodes {
-		go attachSingleNode(folderName, node, &exit)
+		attachSingleNode(folderName, node, &exit)
 	}
 	cont := 0
 	for {
@@ -29,7 +30,6 @@ func AttachPossibleSolutions(folderName string, nodes []*Node) bool {
 			}
 		}
 	}
-	return true
 }
 
 func attachSingleNode(folderName string, node *Node, exit *chan bool) {
@@ -39,15 +39,16 @@ func attachSingleNode(folderName string, node *Node, exit *chan bool) {
 	}
 	scanner := bufio.NewScanner(file)
 	var line string
+	node.PossibleValues = make(map[string][]string)
 	for scanner.Scan() {
 		line = scanner.Text()
-		keyReg := regexp.MustCompile("(.*) ->.*")
-		variable := keyReg.FindStringSubmatch(line)
-		valueReg := regexp.MustCompile(".* -> (.*)") //\n?
-		values := valueReg.FindStringSubmatch(line)
-		fmt.Print(variable[0] + " -> ")
-		fmt.Println(values[0])
+		reg := regexp.MustCompile("(.*) -> (.*)")
+		variable := reg.FindStringSubmatch(line)[1]
+		values := strings.Split(reg.FindStringSubmatch(line)[2], " ")
+		node.PossibleValues[variable] = values
 	}
+	fmt.Print(strconv.Itoa(node.Id) + " ->")
+	fmt.Println(node.PossibleValues)
 	err = file.Close()
 	if err != nil {
 		panic(err)
