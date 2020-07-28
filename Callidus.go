@@ -96,18 +96,12 @@ func main() {
 
 	fmt.Println("starting sub csp computation")
 	startSubComputation := time.Now()
-	SubCSP_Computation("subCSP-"+folderName, domains, constraints, nodes, parallelSubComputation)
+	satisfiable := SubCSP_Computation("subCSP-"+folderName, domains, constraints, nodes, parallelSubComputation, debugOption)
 	fmt.Println("sub csp computed in ", time.Since(startSubComputation))
-
-	fmt.Println("adding tables to nodes")
-	startAddingTables := time.Now()
-	satisfiable := AttachPossibleSolutions("subCSP-"+folderName, nodes)
 	if !satisfiable {
 		fmt.Println("NO SOLUTIONS")
 		return
 	}
-	fmt.Println("tables added in ", time.Since(startAddingTables))
-
 	if !debugOption {
 		err := os.RemoveAll("subCSP-" + folderName)
 		if err != nil {

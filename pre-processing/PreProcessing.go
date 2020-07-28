@@ -16,6 +16,7 @@ import (
 )
 
 func HypergraphTranslation(filePath string) {
+	fmt.Println(filePath)
 	err := os.RemoveAll("output")
 	if err != nil {
 		panic(err)

@@ -14,7 +14,8 @@ import (
 )
 
 //TODO: testare se è meglio una goroutine per ogni nodo oppure se è meglio suddividere il file in pezzi
-func SubCSP_Computation(folderName string, domains map[string][]int, constraints []*Constraint, nodes []*Node, parallel bool) {
+func SubCSP_Computation(folderName string, domains map[string][]int, constraints []*Constraint, nodes []*Node,
+	parallel bool, debugOption bool) bool {
 	//doNacreMakeFile() //se la scelta del solver è nacre
 	err := os.RemoveAll(folderName)
 	if err != nil {
@@ -26,17 +27,41 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 	}
 	wg := &sync.WaitGroup{}
 	wg.Add(len(nodes))
+	satisfiableChan := make(chan bool, len(nodes))
+	satisfiable := true
 	for _, node := range nodes {
 		if parallel {
-			go createAndSolveSubCSP(folderName, node, domains, constraints, wg) //TODO: gestire possibile overhead
+			go createAndSolveSubCSP(folderName, node, domains, constraints, wg, debugOption, satisfiableChan) //TODO: gestire possibile overhead
 		} else {
-			createAndSolveSubCSP(folderName, node, domains, constraints, wg)
+			createAndSolveSubCSP(folderName, node, domains, constraints, wg, debugOption, satisfiableChan)
+			satisfiable = <-satisfiableChan
+			if !satisfiable {
+				break
+			}
 		}
 	}
 	wg.Wait()
+	cont := 0
+	if parallel {
+		cont = 0
+		exit := false
+		for !exit {
+			select {
+			case satisfiable = <-satisfiableChan:
+				cont++
+				if cont == len(nodes) || !satisfiable {
+					exit = true
+					break
+				}
+
+			}
+		}
+	}
+	return satisfiable
 }
 
-func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]int, constraints []*Constraint, wg *sync.WaitGroup) {
+func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]int, constraints []*Constraint,
+	wg *sync.WaitGroup, debugOption bool, satisfiableChan chan bool) {
 	defer wg.Done()
 	fileName := folderName + strconv.Itoa(node.Id) + ".xml"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
@@ -59,7 +84,8 @@ func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]in
 		panic(err)
 	}
 
-	solve(fileName)
+	satisfiableChan <- solve(fileName, debugOption)
+	AttachSingleNode(folderName, node, debugOption)
 }
 
 func writeVariables(file *os.File, variables []string, domains map[string][]int) {
@@ -168,7 +194,15 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(fileName string) {
+func solve(fileName string, debugOption bool) bool {
+	defer func(debugOption bool) {
+		if !debugOption {
+			err := os.RemoveAll(fileName)
+			if err != nil {
+				panic(err)
+			}
+		}
+	}(debugOption)
 	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
 	cmd := exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
 	out, err := cmd.StdoutPipe()
@@ -182,6 +216,7 @@ func solve(fileName string) {
 	if err != nil {
 		panic(err)
 	}
+	solFound := false
 	for {
 		line, err = reader.ReadString('\n')
 		if err == io.EOF && len(line) == 0 {
@@ -189,7 +224,11 @@ func solve(fileName string) {
 		}
 		if strings.HasPrefix(line, "v") {
 			parseLine(line, result)
+			solFound = true
 		}
+	}
+	if !solFound {
+		return false
 	}
 	outputFileName := strings.ReplaceAll(fileName, ".xml", "sol.txt")
 	outfile, err := os.OpenFile(outputFileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
@@ -212,6 +251,7 @@ func solve(fileName string) {
 			panic(err)
 		}
 	}
+	return true
 }
 
 func parseLine(line string, result map[string][]string) {

@@ -3,40 +3,33 @@ package computation
 import (
 	. "../../Callidus/hyperTree"
 	"bufio"
-	"fmt"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-func AttachPossibleSolutions(folderName string, nodes []*Node) bool {
-	exit := make(chan bool, 100)
-	defer close(exit)
-	for _, node := range nodes {
-		attachSingleNode(folderName, node, &exit)
-	}
-	cont := 0
-	for {
-		select {
-		case res := <-exit:
-			if res {
-				cont++
-				if cont == len(nodes) {
-					return true
-				}
-			} else {
-				return false
+func AttachSingleNode(folderName string, node *Node, debugOption bool) {
+	defer func(debugOption bool) {
+		if !debugOption {
+			err := os.RemoveAll(folderName + strconv.Itoa(node.Id) + "sol.txt")
+			if err != nil {
+				panic(err)
 			}
 		}
-	}
-}
-
-func attachSingleNode(folderName string, node *Node, exit *chan bool) {
+	}(debugOption)
 	file, err := os.Open(folderName + strconv.Itoa(node.Id) + "sol.txt")
 	if err != nil {
 		panic(err)
 	}
+	defer func(debugOption bool) {
+		if !debugOption {
+			err := os.RemoveAll(file.Name())
+			if err != nil {
+				panic(err)
+			}
+		}
+	}(debugOption)
 	scanner := bufio.NewScanner(file)
 	var line string
 	node.PossibleValues = make(map[string][]string)
@@ -47,11 +40,8 @@ func attachSingleNode(folderName string, node *Node, exit *chan bool) {
 		values := strings.Split(reg.FindStringSubmatch(line)[2], " ")
 		node.PossibleValues[variable] = values
 	}
-	fmt.Print(strconv.Itoa(node.Id) + " ->")
-	fmt.Println(node.PossibleValues)
 	err = file.Close()
 	if err != nil {
 		panic(err)
 	}
-	*exit <- true
 }
