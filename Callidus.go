@@ -28,9 +28,9 @@ func main() {
 	debugOption := selectDebugOption(args)
 	parallelSubComputation := selectSubComputationExec(args)
 	balancedAlgorithm := selectBalancedAlgorithm(args)
-	//printSol := selectPrintSol(args)
+	printSol := selectPrintSol(args)
 	computeWidth := selectComputeWidth(args)
-	//outputFile := writeSolution(args)
+	outputFile := writeSolution(args)
 
 	fmt.Println("Start Callidus")
 	start := time.Now()
@@ -127,7 +127,7 @@ func main() {
 	}
 }
 
-func printSolution(result map[string][]int, outputFile string) {
+func printSolution(result map[string][]string, outputFile string) {
 	if len(result) > 0 {
 		if outputFile == "" {
 			fmt.Println("SOLUTIONS FOUND: " + strconv.Itoa(len(result)) + "\n")
@@ -143,7 +143,7 @@ func printSolution(result map[string][]int, outputFile string) {
 					panic(err)
 				}
 				for _, v := range value {
-					_, err = file.WriteString(" " + strconv.Itoa(v))
+					_, err = file.WriteString(" " + v)
 					if err != nil {
 						panic(err)
 					}
@@ -160,30 +160,30 @@ func printSolution(result map[string][]int, outputFile string) {
 }
 
 //TODO: in parallel?
-func createResult(nodes []*Node) map[string][]int {
-	result := make(map[string][]int)
+func createResult(nodes []*Node) map[string][]string {
+	result := make(map[string][]string)
 	for _, node := range nodes {
-		for index, key := range node.Variables {
-			if _, exist := result[key]; !exist {
-				result[key] = taleColumn(node.PossibleValues, index)
+		for k, v := range node.PossibleValues {
+			if _, existKey := result[k]; !existKey {
+				result[k] = unique(v)
 			}
 		}
 	}
 	return result
 }
 
-func taleColumn(matrix [][]int, index int) []int {
-	used := make(map[int]struct{})
-	for _, row := range matrix {
-		if _, exist := used[row[index]]; !exist {
-			used[row[index]] = struct{}{}
+func unique(slice []string) []string {
+	cleanSlice := make(map[string]struct{})
+	for _, v := range slice {
+		if _, check := cleanSlice[v]; !check {
+			cleanSlice[v] = struct{}{}
 		}
 	}
-	col := make([]int, 0, len(used))
-	for k := range used {
-		col = append(col, k)
+	var result []string
+	for k, _ := range cleanSlice {
+		result = append(result, k)
 	}
-	return col
+	return result
 }
 
 func contains(args []string, param string) int {
