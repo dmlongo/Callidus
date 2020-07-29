@@ -13,4 +13,5 @@ type Node struct {
 
 func (node *Node) AddSon(node2 *Node) {
 	node.Sons = append(node.Sons, node2)
+	node2.Father = node
 }

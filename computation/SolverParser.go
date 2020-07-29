@@ -10,14 +10,6 @@ import (
 )
 
 func AttachSingleNode(folderName string, node *Node, debugOption bool) {
-	defer func(debugOption bool) {
-		if !debugOption {
-			err := os.RemoveAll(folderName + strconv.Itoa(node.Id) + "sol.txt")
-			if err != nil {
-				panic(err)
-			}
-		}
-	}(debugOption)
 	file, err := os.Open(folderName + strconv.Itoa(node.Id) + "sol.txt")
 	if err != nil {
 		panic(err)

@@ -5,16 +5,6 @@ import (
 	"sync"
 )
 
-type IdJoiningIndex struct {
-	x int
-	y int
-}
-
-type MyMap struct {
-	hash map[IdJoiningIndex][][]int
-	lock *sync.RWMutex
-}
-
 func delByIndex(index int, slice []string) []string {
 	if index+1 >= len(slice) {
 		slice = slice[:index]
@@ -25,9 +15,6 @@ func delByIndex(index int, slice []string) []string {
 }
 
 func Yannakaki(root *Node, version bool) *Node {
-	joiningIndex := &MyMap{}
-	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
-	joiningIndex.lock = &sync.RWMutex{}
 	if len(root.Sons) != 0 {
 		if version {
 			parallelBottomUp(root)
@@ -85,23 +72,48 @@ func parallelTopDown(actual *Node) {
 }
 
 func doSemiJoin(left *Node, right *Node) {
-	trashIndex := make([]bool, len(right.PossibleValues[right.Variables[0]])) //false at beginning
-	for leftVariable, leftValues := range left.PossibleValues {
-		if rightValues, check := right.PossibleValues[leftVariable]; check {
-			for index, values := range rightValues {
-				if !isElementInSlice(values, leftValues) {
-					trashIndex[index] = true
+	//indexToKeep := make([]bool, len(right.PossibleValues[right.Variables[0]])) //false at beginning
+	indexToDiscard := make(map[int]struct{})
+	for _, variable := range left.Variables {
+		if _, join := right.PossibleValues[variable]; join {
+			leftValues := left.PossibleValues[variable]
+			rightValues := right.PossibleValues[variable]
+			for i, value := range rightValues {
+				if !isElementInSlice(value, leftValues) {
+					indexToDiscard[i] = struct{}{}
 				}
 			}
 		}
 	}
-	for _, possibleValues := range right.PossibleValues {
-		for i := len(trashIndex) - 1; i >= 0; i-- {
-			if !trashIndex[i] {
-				possibleValues = delByIndex(i, possibleValues)
+	if len(indexToDiscard) > 0 {
+		newMap := make(map[string][]string)
+		for key, values := range right.PossibleValues {
+			newValues := make([]string, len(values)-len(indexToDiscard))
+			newIndex := 0
+			for index := range values {
+				if _, exist := indexToDiscard[index]; !exist {
+					newValues[newIndex] = values[index]
+					newIndex++
+				}
+			}
+			newMap[key] = newValues
+		}
+		right.PossibleValues = newMap
+	}
+	/*for _, possibleValues := range right.PossibleValues {
+		var newPossibleValues []string
+		for i, value := range indexToKeep {
+			if value {
+				newPossibleValues = append(newPossibleValues, possibleValues[i])
+			} else {
+				fmt.Println("asdfdghj")
 			}
 		}
-	}
+		if len(possibleValues) != len(newPossibleValues) {
+			fmt.Println("fesdfghj")
+		}
+		possibleValues = newPossibleValues
+	}*/
 }
 
 func isElementInSlice(value string, slice []string) bool {

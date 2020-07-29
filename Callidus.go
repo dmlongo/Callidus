@@ -108,7 +108,6 @@ func main() {
 			panic(err)
 		}
 	}
-
 	fmt.Println("starting yannakaki")
 	startYannakaki := time.Now()
 	Yannakaki(root, yannakakiVersion)
