@@ -8,7 +8,7 @@ type Node struct {
 	Father         *Node
 	Sons           []*Node
 	Lock           *sync.Mutex
-	PossibleValues map[string][]string
+	PossibleValues [][]int
 }
 
 func (node *Node) AddSon(node2 *Node) {

@@ -5,7 +5,17 @@ import (
 	"sync"
 )
 
-func delByIndex(index int, slice []string) []string {
+type IdJoiningIndex struct {
+	x int
+	y int
+}
+
+type MyMap struct {
+	hash map[IdJoiningIndex][][]int
+	lock *sync.RWMutex
+}
+
+func delByIndex(index int, slice [][]int) [][]int {
 	if index+1 >= len(slice) {
 		slice = slice[:index]
 	} else {
@@ -15,119 +25,67 @@ func delByIndex(index int, slice []string) []string {
 }
 
 func Yannakaki(root *Node, version bool) *Node {
+	joiningIndex := &MyMap{}
+	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
+	joiningIndex.lock = &sync.RWMutex{}
 	if len(root.Sons) != 0 {
 		if version {
-			parallelBottomUp(root)
-			parallelTopDown(root)
+			parallelBottomUp(root, joiningIndex)
+			parallelTopDown(root, joiningIndex)
 		} else {
-			sequentialBottomUp(root)
-			sequentialTopDown(root)
+			sequentialBottomUp(root, joiningIndex)
+			sequentialTopDown(root, joiningIndex)
 		}
 	}
 	return root
 }
 
-func sequentialBottomUp(actual *Node) {
+func sequentialBottomUp(actual *Node, joiningIndex *MyMap) {
 	for _, son := range actual.Sons {
-		sequentialBottomUp(son)
+		sequentialBottomUp(son, joiningIndex)
 	}
 	if actual.Father != nil {
-		doSemiJoin(actual, actual.Father)
+		doSemiJoin(actual, actual.Father, joiningIndex)
 	}
 }
 
-func sequentialTopDown(actual *Node) {
+func sequentialTopDown(actual *Node, joiningIndex *MyMap) {
 	for _, son := range actual.Sons {
-		doSemiJoin(actual, son)
-		sequentialTopDown(son)
+		doSemiJoin(actual, son, joiningIndex)
+		sequentialTopDown(son, joiningIndex)
 	}
 }
 
-func parallelBottomUp(actual *Node) {
-	var wg = &sync.WaitGroup{}
+func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
+	var wg *sync.WaitGroup = &sync.WaitGroup{}
 	for _, son := range actual.Sons {
 		if len(son.Sons) != 0 && len(actual.Sons) > 1 {
 			wg.Add(1)
 			go func(s *Node) {
-				parallelBottomUp(s)
+				parallelBottomUp(s, joiningIndex)
 				wg.Done()
 			}(son)
 		} else {
-			parallelBottomUp(son)
+			parallelBottomUp(son, joiningIndex)
 		}
 	}
 	wg.Wait()
 	if actual.Father != nil {
 		actual.Father.Lock.Lock()
-		doSemiJoin(actual, actual.Father)
+		doSemiJoin(actual, actual.Father, joiningIndex)
 		actual.Father.Lock.Unlock()
 	}
 }
-
-func parallelTopDown(actual *Node) {
+func parallelTopDown(actual *Node, joiningIndex *MyMap) {
 	for _, son := range actual.Sons {
-		doSemiJoin(actual, son)
-		go parallelTopDown(son)
+		doSemiJoin(actual, son, joiningIndex)
+		go parallelTopDown(son, joiningIndex)
 	}
-}
-
-func doSemiJoin(left *Node, right *Node) {
-	//indexToKeep := make([]bool, len(right.PossibleValues[right.Variables[0]])) //false at beginning
-	indexToDiscard := make(map[int]struct{})
-	for _, variable := range left.Variables {
-		if _, join := right.PossibleValues[variable]; join {
-			leftValues := left.PossibleValues[variable]
-			rightValues := right.PossibleValues[variable]
-			for i, value := range rightValues {
-				if !isElementInSlice(value, leftValues) {
-					indexToDiscard[i] = struct{}{}
-				}
-			}
-		}
-	}
-	if len(indexToDiscard) > 0 {
-		newMap := make(map[string][]string)
-		for key, values := range right.PossibleValues {
-			newValues := make([]string, len(values)-len(indexToDiscard))
-			newIndex := 0
-			for index := range values {
-				if _, exist := indexToDiscard[index]; !exist {
-					newValues[newIndex] = values[index]
-					newIndex++
-				}
-			}
-			newMap[key] = newValues
-		}
-		right.PossibleValues = newMap
-	}
-	/*for _, possibleValues := range right.PossibleValues {
-		var newPossibleValues []string
-		for i, value := range indexToKeep {
-			if value {
-				newPossibleValues = append(newPossibleValues, possibleValues[i])
-			} else {
-				fmt.Println("asdfdghj")
-			}
-		}
-		if len(possibleValues) != len(newPossibleValues) {
-			fmt.Println("fesdfghj")
-		}
-		possibleValues = newPossibleValues
-	}*/
-}
-
-func isElementInSlice(value string, slice []string) bool {
-	for _, v := range slice {
-		if v == value {
-			return true
-		}
-	}
-	return false
 }
 
 // the left node performs the semi join on the right node and update the right's table
 //TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
-/*func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap) {
+func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap) {
 	indexJoin := make([][]int, 0)
 	joiningIndex.lock.RLock()
 	val, ok := joiningIndex.hash[IdJoiningIndex{x: left.Id, y: right.Id}]
@@ -170,4 +128,4 @@ func isElementInSlice(value string, slice []string) bool {
 			right.PossibleValues = delByIndex(i, right.PossibleValues)
 		}
 	}
-}*/
+}

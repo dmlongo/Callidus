@@ -4,7 +4,6 @@ import (
 	. "../../Callidus/hyperTree"
 	"bufio"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -24,13 +23,19 @@ func AttachSingleNode(folderName string, node *Node, debugOption bool) {
 	}(debugOption)
 	scanner := bufio.NewScanner(file)
 	var line string
-	node.PossibleValues = make(map[string][]string)
+	node.PossibleValues = make([][]int, 0)
 	for scanner.Scan() {
 		line = scanner.Text()
-		reg := regexp.MustCompile("(.*) -> (.*)")
-		variable := reg.FindStringSubmatch(line)[1]
-		values := strings.Split(reg.FindStringSubmatch(line)[2], " ")
-		node.PossibleValues[variable] = values
+		values := strings.Split(line, " ")
+		var temp []int
+		for _, v := range values {
+			value, err := strconv.Atoi(v)
+			if err != nil {
+				panic(err)
+			}
+			temp = append(temp, value)
+		}
+		node.PossibleValues = append(node.PossibleValues, temp)
 	}
 	err = file.Close()
 	if err != nil {

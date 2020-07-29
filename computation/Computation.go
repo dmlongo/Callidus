@@ -211,7 +211,7 @@ func solve(fileName string, debugOption bool) bool {
 	}
 	reader := bufio.NewReader(out)
 	var line string
-	result := make(map[string][]string)
+	result := make([][]int, 0)
 	err = cmd.Start()
 	if err != nil {
 		panic(err)
@@ -223,7 +223,7 @@ func solve(fileName string, debugOption bool) bool {
 			break
 		}
 		if strings.HasPrefix(line, "v") {
-			parseLine(line, result)
+			result = parseLine(line, result)
 			solFound = true
 		}
 	}
@@ -235,32 +235,35 @@ func solve(fileName string, debugOption bool) bool {
 	if err != nil {
 		panic(err)
 	}
-	for key, values := range result {
-		_, err = outfile.WriteString(key + " ->")
-		if err != nil {
-			panic(err)
-		}
-		for _, v := range values {
-			_, err = outfile.WriteString(" " + v)
+	for _, row := range result {
+		for index, value := range row {
+			if index == len(row)-1 {
+				_, err = outfile.WriteString(strconv.Itoa(value) + "\n")
+			} else {
+				_, err = outfile.WriteString(strconv.Itoa(value) + " ")
+			}
 			if err != nil {
 				panic(err)
 			}
 		}
-		_, err = outfile.WriteString("\n")
-		if err != nil {
-			panic(err)
-		}
+
 	}
 	return true
 }
 
-func parseLine(line string, result map[string][]string) {
-	reg := regexp.MustCompile(".*<list> (.*) </list> <values>(.*) </values>.*")
-	keys := strings.Split(reg.FindStringSubmatch(line)[1], " ")
-	values := strings.Split(reg.FindStringSubmatch(line)[2], " ")
-	for i, k := range keys {
-		result[k] = append(result[k], values[i])
+func parseLine(line string, result [][]int) [][]int {
+	reg := regexp.MustCompile(".*<values>(.*) </values>.*")
+	values := strings.Split(reg.FindStringSubmatch(line)[1], " ")
+	var temp []int
+	for _, v := range values {
+		value, err := strconv.Atoi(v)
+		if err != nil {
+			panic(err)
+		}
+		temp = append(temp, value)
 	}
+	result = append(result, temp)
+	return result
 }
 
 /*func doNacreMakeFile(){
