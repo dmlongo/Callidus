@@ -14,6 +14,11 @@ import (
 	"time"
 )
 
+type valueSol struct {
+	value    int
+	whoAdded int
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		panic("The first parameter must be an xml file or lzma file")
@@ -108,68 +113,85 @@ func main() {
 	fmt.Println("ended in ", time.Since(start))
 
 	if printSol {
-		result := createResult(nodes)
-		printSolution(result, outputFile)
+		printSolution(root, outputFile, len(domains))
 	}
 }
 
-func printSolution(result map[string][]int, outputFile string) {
-	if len(result) > 0 {
-		if outputFile == "" {
-			fmt.Println("SOLUTIONS FOUND: " + strconv.Itoa(len(result)) + "\n")
-			//TODO: fare il prodotto cartesiano
+func printSolution(root *Node, outputFile string, numVariables int) {
+	if outputFile == "" {
+		contSol := 0
+		sol := make(map[string]valueSol)
+		printAllSolutions(root, sol, &contSol, numVariables, nil)
+		fmt.Println("Solutions found: ", contSol)
+	} else {
+		file, err := os.OpenFile(outputFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+		if err != nil {
+			panic(err)
+		}
+		contSol := 0
+		sol := make(map[string]valueSol)
+		printAllSolutions(root, sol, &contSol, numVariables, file)
+		_, err = file.WriteString("Solutions found: " + strconv.Itoa(contSol))
+		if err != nil {
+			panic(err)
+		}
+
+	}
+}
+
+func printAllSolutions(node *Node, sol map[string]valueSol, contSol *int, numVariables int, outputFile *os.File) {
+	x := 0
+	for x < len(node.PossibleValues) {
+		if canAddToSol(node, sol, x) {
+			if len(sol) == numVariables {
+				*contSol++
+				printSol(sol, outputFile, contSol)
+			}
+			for _, son := range node.Sons {
+				printAllSolutions(son, sol, contSol, numVariables, outputFile)
+			}
+			removeNodeFromSol(node, sol)
+			x++
 		} else {
-			file, err := os.OpenFile(outputFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
-			if err != nil {
-				panic(err)
+			x++
+		}
+	}
+}
+
+func canAddToSol(node *Node, sol map[string]valueSol, row int) bool {
+	for index, variable := range node.Variables {
+		if _, exist := sol[variable]; exist {
+			if node.PossibleValues[row][index] != sol[variable].value {
+				return false
 			}
-			for key, value := range result {
-				_, err = file.WriteString(key + " ->")
-				if err != nil {
-					panic(err)
-				}
-				for _, v := range value {
-					_, err = file.WriteString(" " + strconv.Itoa(v))
-					if err != nil {
-						panic(err)
-					}
-				}
-				_, err = file.WriteString("\n")
-				if err != nil {
-					panic(err)
-				}
-			}
+		} else {
+			sol[variable] = valueSol{value: node.PossibleValues[row][index], whoAdded: node.Id}
+		}
+	}
+	return true
+}
+
+func removeNodeFromSol(node *Node, sol map[string]valueSol) {
+	for _, variable := range node.Variables {
+		if sol[variable].whoAdded == node.Id {
+			delete(sol, variable)
+		}
+	}
+}
+
+func printSol(sol map[string]valueSol, outputFile *os.File, numSol *int) {
+	solString := "Sol " + strconv.Itoa(*numSol) + "\n"
+	for variable, value := range sol {
+		solString += variable + " -> " + strconv.Itoa(value.value) + "\n"
+	}
+	if outputFile != nil {
+		_, err := outputFile.WriteString(solString)
+		if err != nil {
+			panic(err)
 		}
 	} else {
-		fmt.Println("NO SOLUTIONS")
+		fmt.Print(solString)
 	}
-}
-
-//TODO: in parallel?
-func createResult(nodes []*Node) map[string][]int {
-	result := make(map[string][]int)
-	for _, node := range nodes {
-		for index, key := range node.Variables {
-			if _, exist := result[key]; !exist {
-				result[key] = taleColumn(node.PossibleValues, index)
-			}
-		}
-	}
-	return result
-}
-
-func taleColumn(matrix [][]int, index int) []int {
-	used := make(map[int]struct{})
-	for _, row := range matrix {
-		if _, exist := used[row[index]]; !exist {
-			used[row[index]] = struct{}{}
-		}
-	}
-	col := make([]int, 0, len(used))
-	for k := range used {
-		col = append(col, k)
-	}
-	return col
 }
 
 func contains(args []string, param string) int {
