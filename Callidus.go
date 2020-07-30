@@ -53,40 +53,33 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(3)
 
+	fmt.Println("parsing hypertree, domain and constraints")
+	startPrep := time.Now()
 	var nodes []*Node
 	var root *Node
 	go func() {
-		fmt.Println("creating hypertree")
-		startHypertreeCreation := time.Now()
 		if inMemory {
-			root, nodes = GetHyperTreeInMemory(hypertreeFile, &hyperTreeRaw)
+			root, nodes = GetHyperTreeInMemory(&hyperTreeRaw)
 		} else {
 			root, nodes = GetHyperTree(hypertreeFile)
 		}
-		fmt.Println("hypertree created in ", time.Since(startHypertreeCreation))
 		wg.Done()
 	}()
 
 	var domains map[string][]int
-	var variables []string
 	go func() {
-		fmt.Println("parsing domain")
-		startDomainParsing := time.Now()
-		domains, variables = GetDomains(filePath, "output"+folderName)
-		fmt.Println("domain parsed in ", time.Since(startDomainParsing))
+		domains = GetDomains(filePath, "output"+folderName)
 		wg.Done()
 	}()
 
 	var constraints []*Constraint
 	go func() {
-		fmt.Println("reading constraints")
-		startConstraintsParsing := time.Now()
 		constraints = GetConstraints(filePath, "output"+folderName)
-		fmt.Println("constraints taken in ", time.Since(startConstraintsParsing))
 		wg.Done()
 	}()
 
 	wg.Wait()
+	fmt.Println("hypertree, domain and constraints parsed in ", time.Since(startPrep))
 	if !debugOption {
 		err := os.RemoveAll("output" + folderName)
 		if err != nil {

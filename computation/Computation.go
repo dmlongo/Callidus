@@ -13,10 +13,8 @@ import (
 	"sync"
 )
 
-//TODO: testare se è meglio una goroutine per ogni nodo oppure se è meglio suddividere il file in pezzi
 func SubCSP_Computation(folderName string, domains map[string][]int, constraints []*Constraint, nodes []*Node,
 	parallel bool, debugOption bool) bool {
-	//doNacreMakeFile() //se la scelta del solver è nacre
 	err := os.RemoveAll(folderName)
 	if err != nil {
 		panic(err)
@@ -143,6 +141,7 @@ func writeConstraints(file *os.File, variables []string, constraints []*Constrai
 }
 
 //check if the constraint is associated with a node variables
+//TODO: we could use a map to speed up the check
 func isConstraintOk(constraintVariables []string, variables []string) bool {
 	ok := true
 	for _, constraintVariable := range constraintVariables {
@@ -155,6 +154,7 @@ func isConstraintOk(constraintVariables []string, variables []string) bool {
 		}
 		if !isConstraintVariableOk {
 			ok = false
+			break
 		}
 	}
 	return ok

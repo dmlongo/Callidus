@@ -139,7 +139,6 @@ func GetHyperTree(filePath string) (*Node, []*Node) {
 			res = reg.FindStringSubmatch(line)
 			target, _ := strconv.Atoi(res[1])
 			nodes[source].AddSon(nodes[target])
-			nodes[target].Father = nodes[source]
 		}
 	}
 	var root *Node
@@ -156,7 +155,7 @@ func GetHyperTree(filePath string) (*Node, []*Node) {
 	return root, onlyNodes
 }
 
-func GetHyperTreeInMemory(filePath string, hyperTreeRaw *string) (*Node, []*Node) {
+func GetHyperTreeInMemory(hyperTreeRaw *string) (*Node, []*Node) {
 	output := strings.Split(*hyperTreeRaw, "\n")
 	nodes := make(map[int]*Node)
 	var onlyNodes []*Node
@@ -264,7 +263,7 @@ func GetConstraints(filePath string, folderName string) []*Constraint {
 	return constraints
 }
 
-func GetDomains(filePath string, folderName string) (map[string][]int, []string) {
+func GetDomains(filePath string, folderName string) map[string][]int {
 	var domainPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		domainPath = strings.ReplaceAll(filePath, ".xml", "domain.hg")
@@ -279,7 +278,6 @@ func GetDomains(filePath string, folderName string) (map[string][]int, []string)
 	scanner := bufio.NewScanner(file)
 	var line string
 	m := make(map[string][]int)
-	var variables []string
 	for scanner.Scan() {
 		variable := scanner.Text()
 		scanner.Scan()
@@ -290,11 +288,10 @@ func GetDomains(filePath string, folderName string) (map[string][]int, []string)
 			values = append(values, i)
 		}
 		m[variable] = values
-		variables = append(variables, variable)
 	}
 	err = file.Close()
 	if err != nil {
 		panic(err)
 	}
-	return m, variables
+	return m
 }
