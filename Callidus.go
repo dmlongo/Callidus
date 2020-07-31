@@ -113,8 +113,134 @@ func main() {
 	fmt.Println("ended in ", time.Since(start))
 
 	if printSol {
-		printSolution(root, outputFile, len(domains))
+		//printSolution(root, outputFile, len(domains))
+		//Simone's version
+
+		result := make([]map[string]int, 0)
+		result = *(searchResults(root, &result))
+		fmt.Println(len(result))
+		printSolution2(&result, outputFile)
 	}
+}
+
+func printSolution2(result *[]map[string]int, outputFile string) {
+	if len(*result) > 0 {
+		if outputFile == "" {
+			//fmt.Println("SOLUTIONS FOUND: " + strconv.Itoa(len(result)) + "\n")
+			//TODO: fare il prodotto cartesiano
+		} else {
+			err := os.RemoveAll(outputFile)
+			if err != nil {
+				panic(err)
+			}
+			file, err := os.OpenFile(outputFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+			if err != nil {
+				panic(err)
+			}
+			for indexResult, res := range *result {
+				_, err = file.WriteString("Sol " + strconv.Itoa(indexResult+1) + "\n")
+				if err != nil {
+					panic(err)
+				}
+				for key, value := range res {
+					_, err = file.WriteString(key + " -> " + strconv.Itoa(value) + "\n")
+					if err != nil {
+						panic(err)
+					}
+				}
+			}
+			_, err = file.WriteString("Solutions found: " + strconv.Itoa(len(*result)))
+			if err != nil {
+				panic(err)
+			}
+		}
+	} else {
+		fmt.Println("NO SOLUTIONS")
+	}
+}
+
+func searchResults(actual *Node, result *[]map[string]int) *[]map[string]int {
+	joins := make(map[string]int, 0)
+	if actual.Father != nil {
+		for _, varFather := range actual.Father.Variables {
+			for index, varActual := range actual.Variables {
+				if varActual == varFather {
+					joins[varActual] = index
+					break
+				}
+			}
+		}
+	}
+	joinDone := make(map[string]int)
+	newResults := make([]map[string]int, 0)
+	addNewResults := false
+
+	for _, sol := range actual.PossibleValues {
+
+		keyJoin := ""
+		for index, value := range sol {
+			_, isVariableJoin := joins[actual.Variables[index]]
+			if isVariableJoin {
+				keyJoin += strconv.Itoa(value)
+			}
+		}
+		_, alreadyInMap := joinDone[keyJoin]
+		if alreadyInMap {
+			joinDone[keyJoin]++
+		} else {
+			joinDone[keyJoin] = 1
+		}
+
+		if len(joins) >= 1 {
+			for _, res := range *result {
+				joinOk := true
+				for joinKey, joinIndex := range joins {
+					if res[joinKey] != sol[joinIndex] {
+						joinOk = false
+						break
+					}
+				}
+				if joinOk {
+
+					if joinDone[keyJoin] == 1 {
+						for index, value := range sol {
+							res[actual.Variables[index]] = value
+						}
+					} else {
+						addNewResults = true
+						copyRes := make(map[string]int, 0)
+						for key, val := range res {
+							copyRes[key] = val
+						}
+
+						for index, value := range sol {
+							copyRes[actual.Variables[index]] = value
+						}
+						newResults = append(newResults, copyRes)
+					}
+
+				}
+			}
+		} else {
+			resTemp := make(map[string]int)
+			for index, value := range sol {
+				resTemp[actual.Variables[index]] = value
+			}
+			*result = append(*result, resTemp)
+		}
+
+	}
+
+	if addNewResults {
+		for _, singleNewResult := range newResults {
+			*result = append(*result, singleNewResult)
+		}
+	}
+
+	for _, son := range actual.Sons {
+		result = searchResults(son, result)
+	}
+	return result
 }
 
 func printSolution(root *Node, outputFile string, numVariables int) {
