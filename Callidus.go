@@ -113,9 +113,9 @@ func main() {
 	fmt.Println("ended in ", time.Since(start))
 
 	if printSol {
-		result := make([]map[string]int, 0)
-		result = *(searchResults(root, &result))
-		printSolution(&result, outputFile)
+		finalResult := make([]map[string]int, 0)
+		searchResults(root, &finalResult)
+		printSolution(&finalResult, outputFile)
 	}
 }
 
@@ -160,7 +160,7 @@ func printSolution(result *[]map[string]int, outputFile string) {
 	}
 }
 
-func searchResults(actual *Node, finalResults *[]map[string]int) *[]map[string]int {
+func searchResults(actual *Node, finalResults *[]map[string]int) {
 	joinVariables := make(map[string]int, 0)
 	if actual.Father != nil {
 		for _, varFather := range actual.Father.Variables {
@@ -172,38 +172,38 @@ func searchResults(actual *Node, finalResults *[]map[string]int) *[]map[string]i
 			}
 		}
 	}
-
 	joinDoneCount := make(map[string]int)
 	newResults := make([]map[string]int, 0)
 	addNewResults := false
 
 	for _, singleNodeSolution := range actual.PossibleValues {
 
-		joinKey := ""
+		keyJoin := ""
 		for index, value := range singleNodeSolution {
 			_, isVariableJoin := joinVariables[actual.Variables[index]]
 			if isVariableJoin {
-				joinKey += strconv.Itoa(value)
+				keyJoin += strconv.Itoa(value)
 			}
 		}
-		_, alreadyInMap := joinDoneCount[joinKey]
+		_, alreadyInMap := joinDoneCount[keyJoin]
 		if alreadyInMap {
-			joinDoneCount[joinKey]++
+			joinDoneCount[keyJoin]++
 		} else {
-			joinDoneCount[joinKey] = 1
+			joinDoneCount[keyJoin] = 1
 		}
 
 		if len(joinVariables) >= 1 {
 			for _, singleFinalResult := range *finalResults {
 				joinOk := true
-				for joinKey, joinIndex := range joinDoneCount {
+				for joinKey, joinIndex := range joinVariables {
 					if singleFinalResult[joinKey] != singleNodeSolution[joinIndex] {
 						joinOk = false
 						break
 					}
 				}
 				if joinOk {
-					if joinDoneCount[joinKey] == 1 {
+
+					if joinDoneCount[keyJoin] == 1 {
 						for index, value := range singleNodeSolution {
 							singleFinalResult[actual.Variables[index]] = value
 						}
@@ -239,9 +239,9 @@ func searchResults(actual *Node, finalResults *[]map[string]int) *[]map[string]i
 	}
 
 	for _, son := range actual.Sons {
-		finalResults = searchResults(son, finalResults)
+		searchResults(son, finalResults)
 	}
-	return finalResults
+
 }
 
 func contains(args []string, param string) int {
