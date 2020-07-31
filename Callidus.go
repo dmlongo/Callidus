@@ -113,21 +113,22 @@ func main() {
 	fmt.Println("ended in ", time.Since(start))
 
 	if printSol {
-		//printSolution(root, outputFile, len(domains))
-		//Simone's version
-
 		result := make([]map[string]int, 0)
 		result = *(searchResults(root, &result))
-		fmt.Println(len(result))
-		printSolution2(&result, outputFile)
+		printSolution(&result, outputFile)
 	}
 }
 
-func printSolution2(result *[]map[string]int, outputFile string) {
+func printSolution(result *[]map[string]int, outputFile string) {
 	if len(*result) > 0 {
 		if outputFile == "" {
-			//fmt.Println("SOLUTIONS FOUND: " + strconv.Itoa(len(result)) + "\n")
-			//TODO: fare il prodotto cartesiano
+			for indexResult, res := range *result {
+				fmt.Print("Sol " + strconv.Itoa(indexResult+1) + "\n")
+				for key, value := range res {
+					fmt.Print(key + " -> " + strconv.Itoa(value) + "\n")
+				}
+			}
+			fmt.Print("Solutions found: " + strconv.Itoa(len(*result)))
 		} else {
 			err := os.RemoveAll(outputFile)
 			if err != nil {
@@ -159,61 +160,61 @@ func printSolution2(result *[]map[string]int, outputFile string) {
 	}
 }
 
-func searchResults(actual *Node, result *[]map[string]int) *[]map[string]int {
-	joins := make(map[string]int, 0)
+func searchResults(actual *Node, finalResults *[]map[string]int) *[]map[string]int {
+	joinVariables := make(map[string]int, 0)
 	if actual.Father != nil {
 		for _, varFather := range actual.Father.Variables {
 			for index, varActual := range actual.Variables {
 				if varActual == varFather {
-					joins[varActual] = index
+					joinVariables[varActual] = index
 					break
 				}
 			}
 		}
 	}
-	joinDone := make(map[string]int)
+
+	joinDoneCount := make(map[string]int)
 	newResults := make([]map[string]int, 0)
 	addNewResults := false
 
-	for _, sol := range actual.PossibleValues {
+	for _, singleNodeSolution := range actual.PossibleValues {
 
-		keyJoin := ""
-		for index, value := range sol {
-			_, isVariableJoin := joins[actual.Variables[index]]
+		joinKey := ""
+		for index, value := range singleNodeSolution {
+			_, isVariableJoin := joinVariables[actual.Variables[index]]
 			if isVariableJoin {
-				keyJoin += strconv.Itoa(value)
+				joinKey += strconv.Itoa(value)
 			}
 		}
-		_, alreadyInMap := joinDone[keyJoin]
+		_, alreadyInMap := joinDoneCount[joinKey]
 		if alreadyInMap {
-			joinDone[keyJoin]++
+			joinDoneCount[joinKey]++
 		} else {
-			joinDone[keyJoin] = 1
+			joinDoneCount[joinKey] = 1
 		}
 
-		if len(joins) >= 1 {
-			for _, res := range *result {
+		if len(joinVariables) >= 1 {
+			for _, singleFinalResult := range *finalResults {
 				joinOk := true
-				for joinKey, joinIndex := range joins {
-					if res[joinKey] != sol[joinIndex] {
+				for joinKey, joinIndex := range joinDoneCount {
+					if singleFinalResult[joinKey] != singleNodeSolution[joinIndex] {
 						joinOk = false
 						break
 					}
 				}
 				if joinOk {
-
-					if joinDone[keyJoin] == 1 {
-						for index, value := range sol {
-							res[actual.Variables[index]] = value
+					if joinDoneCount[joinKey] == 1 {
+						for index, value := range singleNodeSolution {
+							singleFinalResult[actual.Variables[index]] = value
 						}
 					} else {
 						addNewResults = true
 						copyRes := make(map[string]int, 0)
-						for key, val := range res {
+						for key, val := range singleFinalResult {
 							copyRes[key] = val
 						}
 
-						for index, value := range sol {
+						for index, value := range singleNodeSolution {
 							copyRes[actual.Variables[index]] = value
 						}
 						newResults = append(newResults, copyRes)
@@ -223,101 +224,24 @@ func searchResults(actual *Node, result *[]map[string]int) *[]map[string]int {
 			}
 		} else {
 			resTemp := make(map[string]int)
-			for index, value := range sol {
+			for index, value := range singleNodeSolution {
 				resTemp[actual.Variables[index]] = value
 			}
-			*result = append(*result, resTemp)
+			*finalResults = append(*finalResults, resTemp)
 		}
 
 	}
 
 	if addNewResults {
 		for _, singleNewResult := range newResults {
-			*result = append(*result, singleNewResult)
+			*finalResults = append(*finalResults, singleNewResult)
 		}
 	}
 
 	for _, son := range actual.Sons {
-		result = searchResults(son, result)
+		finalResults = searchResults(son, finalResults)
 	}
-	return result
-}
-
-func printSolution(root *Node, outputFile string, numVariables int) {
-	if outputFile == "" {
-		contSol := 0
-		sol := make(map[string]valueSol)
-		printAllSolutions(root, sol, &contSol, numVariables, nil)
-		fmt.Println("Solutions found: ", contSol)
-	} else {
-		file, err := os.OpenFile(outputFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
-		if err != nil {
-			panic(err)
-		}
-		contSol := 0
-		sol := make(map[string]valueSol)
-		printAllSolutions(root, sol, &contSol, numVariables, file)
-		_, err = file.WriteString("Solutions found: " + strconv.Itoa(contSol))
-		if err != nil {
-			panic(err)
-		}
-
-	}
-}
-
-func printAllSolutions(node *Node, sol map[string]valueSol, contSol *int, numVariables int, outputFile *os.File) {
-	x := 0
-	for x < len(node.PossibleValues) {
-		if canAddToSol(node, sol, x) {
-			if len(sol) == numVariables {
-				*contSol++
-				printSol(sol, outputFile, contSol)
-			}
-			for _, son := range node.Sons {
-				printAllSolutions(son, sol, contSol, numVariables, outputFile)
-			}
-			removeNodeFromSol(node, sol)
-			x++
-		} else {
-			x++
-		}
-	}
-}
-
-func canAddToSol(node *Node, sol map[string]valueSol, row int) bool {
-	for index, variable := range node.Variables {
-		if _, exist := sol[variable]; exist {
-			if node.PossibleValues[row][index] != sol[variable].value {
-				return false
-			}
-		} else {
-			sol[variable] = valueSol{value: node.PossibleValues[row][index], whoAdded: node.Id}
-		}
-	}
-	return true
-}
-
-func removeNodeFromSol(node *Node, sol map[string]valueSol) {
-	for _, variable := range node.Variables {
-		if sol[variable].whoAdded == node.Id {
-			delete(sol, variable)
-		}
-	}
-}
-
-func printSol(sol map[string]valueSol, outputFile *os.File, numSol *int) {
-	solString := "Sol " + strconv.Itoa(*numSol) + "\n"
-	for variable, value := range sol {
-		solString += variable + " -> " + strconv.Itoa(value.value) + "\n"
-	}
-	if outputFile != nil {
-		_, err := outputFile.WriteString(solString)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		fmt.Print(solString)
-	}
+	return finalResults
 }
 
 func contains(args []string, param string) int {
