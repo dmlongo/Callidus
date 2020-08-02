@@ -83,8 +83,12 @@ func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]in
 		panic(err)
 	}
 
-	satisfiableChan <- solve(fileName, debugOption)
-	AttachSingleNode(folderName, node, debugOption)
+	satisfiable := solve(fileName, debugOption)
+	satisfiableChan <- satisfiable
+	if satisfiable {
+		AttachSingleNode(folderName, node, debugOption)
+	}
+
 }
 
 func writeVariables(file *os.File, variables []string, domains map[string][]int) {
@@ -219,6 +223,20 @@ func solve(fileName string, debugOption bool) bool {
 	}
 	solFound := false
 	for {
+		//select {
+		//case exit := <- killProcess:
+		//	cmd.Process.Kill()
+		//	return exit
+		//default:
+		//	line, err = reader.ReadString('\n')
+		//	if err == io.EOF && len(line) == 0 {
+		//		break
+		//	}
+		//	if strings.HasPrefix(line, "v") {
+		//		result = parseLine(line, result)
+		//		solFound = true
+		//	}
+		//}
 		line, err = reader.ReadString('\n')
 		if err == io.EOF && len(line) == 0 {
 			break

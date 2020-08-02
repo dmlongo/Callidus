@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -102,7 +101,6 @@ func main() {
 		return
 	}
 	if !debugOption {
-		fmt.Println(runtime.NumGoroutine())
 		err := os.RemoveAll("subCSP-" + folderName)
 		if err != nil {
 			panic(err)
