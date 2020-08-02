@@ -27,11 +27,12 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 	wg.Add(len(nodes))
 	satisfiableChan := make(chan bool, len(nodes))
 	satisfiable := true
-	for _, node := range nodes {
+	cmdArray := make([]exec.Cmd, len(nodes))
+	for i, node := range nodes {
 		if parallel {
-			go createAndSolveSubCSP(folderName, node, domains, constraints, wg, debugOption, satisfiableChan) //TODO: gestire possibile overhead
+			go createAndSolveSubCSP(folderName, node, domains, constraints, wg, debugOption, satisfiableChan, &cmdArray[i]) //TODO: gestire possibile overhead
 		} else {
-			createAndSolveSubCSP(folderName, node, domains, constraints, wg, debugOption, satisfiableChan)
+			createAndSolveSubCSP(folderName, node, domains, constraints, wg, debugOption, satisfiableChan, &cmdArray[i])
 			satisfiable = <-satisfiableChan
 			if !satisfiable {
 				break
@@ -55,12 +56,15 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 			}
 		}
 		close(satisfiableChan)
+		for _, cmd := range cmdArray {
+			_ = cmd.Process.Kill()
+		}
 	}
 	return satisfiable
 }
 
 func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]int, constraints []*Constraint,
-	wg *sync.WaitGroup, debugOption bool, satisfiableChan chan bool) {
+	wg *sync.WaitGroup, debugOption bool, satisfiableChan chan bool, cmd *exec.Cmd) {
 	defer wg.Done()
 	fileName := folderName + strconv.Itoa(node.Id) + ".xml"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
@@ -83,7 +87,7 @@ func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]in
 		panic(err)
 	}
 
-	satisfiable := solve(fileName, debugOption)
+	satisfiable := solve(fileName, debugOption, cmd)
 	satisfiableChan <- satisfiable
 	if satisfiable {
 		AttachSingleNode(folderName, node, debugOption)
@@ -199,7 +203,7 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(fileName string, debugOption bool) bool {
+func solve(fileName string, debugOption bool, cmd *exec.Cmd) bool {
 	defer func(debugOption bool) {
 		if !debugOption {
 			err := os.Remove(fileName)
@@ -209,7 +213,7 @@ func solve(fileName string, debugOption bool) bool {
 		}
 	}(debugOption)
 	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
-	cmd := exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
+	cmd = exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
@@ -223,20 +227,6 @@ func solve(fileName string, debugOption bool) bool {
 	}
 	solFound := false
 	for {
-		//select {
-		//case exit := <- killProcess:
-		//	cmd.Process.Kill()
-		//	return exit
-		//default:
-		//	line, err = reader.ReadString('\n')
-		//	if err == io.EOF && len(line) == 0 {
-		//		break
-		//	}
-		//	if strings.HasPrefix(line, "v") {
-		//		result = parseLine(line, result)
-		//		solFound = true
-		//	}
-		//}
 		line, err = reader.ReadString('\n')
 		if err == io.EOF && len(line) == 0 {
 			break

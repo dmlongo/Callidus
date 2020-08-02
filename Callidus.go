@@ -100,6 +100,13 @@ func main() {
 		fmt.Println("NO SOLUTIONS")
 		return
 	}
+	if !debugOption {
+
+		err := os.RemoveAll("subCSP-" + folderName)
+		if err != nil {
+			panic(err)
+		}
+	}
 	fmt.Println("starting yannakaki")
 	startYannakaki := time.Now()
 	Yannakaki(root, yannakakiVersion)
@@ -112,12 +119,6 @@ func main() {
 		printSolution(&finalResult, outputFile)
 	}
 
-	if !debugOption {
-		err := os.RemoveAll("subCSP-" + folderName)
-		if err != nil {
-			panic(err)
-		}
-	}
 }
 
 func printSolution(result *[]map[string]int, outputFile string) {
