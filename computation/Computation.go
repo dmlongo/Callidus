@@ -202,7 +202,7 @@ func getPossibleValues(constraint *Constraint) string {
 func solve(fileName string, debugOption bool) bool {
 	defer func(debugOption bool) {
 		if !debugOption {
-			err := os.RemoveAll(fileName)
+			err := os.Remove(fileName)
 			if err != nil {
 				panic(err)
 			}

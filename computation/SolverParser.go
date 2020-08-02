@@ -15,7 +15,7 @@ func AttachSingleNode(folderName string, node *Node, debugOption bool) {
 	}
 	defer func(debugOption bool) {
 		if !debugOption {
-			err := os.RemoveAll(file.Name())
+			err := os.Remove(file.Name())
 			if err != nil {
 				panic(err)
 			}
