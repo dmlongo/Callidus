@@ -54,6 +54,7 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 
 			}
 		}
+		close(satisfiableChan)
 	}
 	return satisfiable
 }
