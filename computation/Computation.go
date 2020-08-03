@@ -4,10 +4,12 @@ import (
 	. "../../Callidus/constraint"
 	. "../../Callidus/hyperTree"
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -216,59 +218,46 @@ func solve(fileName string, debugOption bool) bool {
 	}
 	reader := bufio.NewReader(out)
 	var line string
-	result := make([][]int, 0)
 	err = cmd.Start()
 	if err != nil {
 		panic(err)
 	}
 	solFound := false
-	for {
-		line, err = reader.ReadString('\n')
-		if err == io.EOF && len(line) == 0 {
-			break
+	parsedLine := make(chan string, 100)
+	defer close(parsedLine)
+	go func() {
+		for {
+			line, err = reader.ReadString('\n')
+			if err == io.EOF && len(line) == 0 {
+				break
+			}
+			if strings.HasPrefix(line, "v") {
+				parsedLine <- parseLine(line)
+				solFound = true
+			}
+
 		}
-		if strings.HasPrefix(line, "v") {
-			result = parseLine(line, result)
-			solFound = true
-		}
-	}
-	if !solFound {
-		return false
-	}
+	}()
 	outputFileName := strings.ReplaceAll(fileName, ".xml", "sol.txt")
 	outfile, err := os.OpenFile(outputFileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
 	if err != nil {
 		panic(err)
 	}
-	for _, row := range result {
-		for index, value := range row {
-			if index == len(row)-1 {
-				_, err = outfile.WriteString(strconv.Itoa(value) + "\n")
-			} else {
-				_, err = outfile.WriteString(strconv.Itoa(value) + " ")
-			}
-			if err != nil {
-				panic(err)
-			}
+	for row := range parsedLine {
+		_, err = outfile.WriteString(row + "\n")
+		if err != nil {
+			panic(err)
 		}
-
+	}
+	if !solFound {
+		return false
 	}
 	return true
 }
 
-func parseLine(line string, result [][]int) [][]int {
+func parseLine(line string) string {
 	reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-	values := strings.Split(reg.FindStringSubmatch(line)[1], " ")
-	var temp []int
-	for _, v := range values {
-		value, err := strconv.Atoi(v)
-		if err != nil {
-			panic(err)
-		}
-		temp = append(temp, value)
-	}
-	result = append(result, temp)
-	return result
+	return reg.FindStringSubmatch(line)[1]
 }
 
 /*func doNacreMakeFile(){
@@ -278,3 +267,17 @@ func parseLine(line string, result [][]int) [][]int {
 		panic(err)
 	}
 }*/
+
+func PrintMemUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
+	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
+	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
+}

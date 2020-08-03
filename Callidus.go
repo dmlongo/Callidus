@@ -14,11 +14,6 @@ import (
 	"time"
 )
 
-type valueSol struct {
-	value    int
-	whoAdded int
-}
-
 func main() {
 	if len(os.Args) == 1 {
 		panic("The first parameter must be an xml file or lzma file")
@@ -93,6 +88,12 @@ func main() {
 	}
 
 	fmt.Println("starting sub csp computation")
+	go func() {
+		for {
+			PrintMemUsage()
+			time.Sleep(5 * time.Second)
+		}
+	}()
 	startSubComputation := time.Now()
 	satisfiable := SubCSP_Computation("subCSP-"+folderName, domains, constraints, nodes, parallelSubComputation, debugOption)
 	fmt.Println("sub csp computed in ", time.Since(startSubComputation))
