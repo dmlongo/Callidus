@@ -4,12 +4,10 @@ import (
 	. "../../Callidus/constraint"
 	. "../../Callidus/hyperTree"
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -268,7 +266,7 @@ func parseLine(line string) string {
 	}
 }*/
 
-func PrintMemUsage() {
+/*func PrintMemUsage() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
@@ -280,4 +278,4 @@ func PrintMemUsage() {
 
 func bToMb(b uint64) uint64 {
 	return b / 1024 / 1024
-}
+}*/
