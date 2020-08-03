@@ -222,8 +222,8 @@ func solve(fileName string, debugOption bool) bool {
 	}
 	solFound := false
 	parsedLine := make(chan string, 100)
-	defer close(parsedLine)
 	go func() {
+		defer close(parsedLine)
 		for {
 			line, err = reader.ReadString('\n')
 			if err == io.EOF && len(line) == 0 {
