@@ -4,10 +4,12 @@ import (
 	. "../../Callidus/constraint"
 	. "../../Callidus/hyperTree"
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -83,11 +85,8 @@ func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]in
 		panic(err)
 	}
 
-	satisfiable := solve(fileName, debugOption)
+	satisfiable := solve(fileName, node, debugOption)
 	satisfiableChan <- satisfiable
-	if satisfiable {
-		AttachSingleNode(folderName, node, debugOption)
-	}
 
 }
 
@@ -199,7 +198,7 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(fileName string, debugOption bool) bool {
+func solve(fileName string, node *Node, debugOption bool) bool {
 	defer func(debugOption bool) {
 		if !debugOption {
 			err := os.Remove(fileName)
@@ -220,42 +219,32 @@ func solve(fileName string, debugOption bool) bool {
 	if err != nil {
 		panic(err)
 	}
-	solFound := false
-	parsedLine := make(chan string, 100)
-	go func() {
-		defer close(parsedLine)
-		for {
-			line, err = reader.ReadString('\n')
-			if err == io.EOF && len(line) == 0 {
-				break
-			}
-			if strings.HasPrefix(line, "v") {
-				parsedLine <- parseLine(line)
-				solFound = true
-			}
 
+	solFound := false
+	node.PossibleValues = make([][]int, 0)
+	for {
+		line, err = reader.ReadString('\n')
+		if err == io.EOF && len(line) == 0 {
+			break
 		}
-	}()
-	outputFileName := strings.ReplaceAll(fileName, ".xml", "sol.txt")
-	outfile, err := os.OpenFile(outputFileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
-	if err != nil {
-		panic(err)
-	}
-	for row := range parsedLine {
-		_, err = outfile.WriteString(row + "\n")
-		if err != nil {
-			panic(err)
+		if strings.HasPrefix(line, "v") {
+			reg := regexp.MustCompile(".*<values>(.*) </values>.*")
+			temp := make([]int, len(node.Variables))
+			for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+				v, err := strconv.Atoi(value)
+				if err != nil {
+					panic(err)
+				}
+				temp[i] = v
+			}
+			node.PossibleValues = append(node.PossibleValues, temp)
+			solFound = true
 		}
 	}
 	if !solFound {
 		return false
 	}
 	return true
-}
-
-func parseLine(line string) string {
-	reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-	return reg.FindStringSubmatch(line)[1]
 }
 
 /*func doNacreMakeFile(){
@@ -266,7 +255,7 @@ func parseLine(line string) string {
 	}
 }*/
 
-/*func PrintMemUsage() {
+func PrintMemUsage() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
@@ -278,4 +267,4 @@ func parseLine(line string) string {
 
 func bToMb(b uint64) uint64 {
 	return b / 1024 / 1024
-}*/
+}
