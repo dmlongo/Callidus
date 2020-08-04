@@ -88,12 +88,12 @@ func main() {
 	}
 
 	fmt.Println("starting sub csp computation")
-	go func() {
+	/*go func() {
 		for {
 			PrintMemUsage()
 			time.Sleep(5 * time.Second)
 		}
-	}()
+	}()*/
 	startSubComputation := time.Now()
 	satisfiable := SubCSP_Computation("subCSP-"+folderName, domains, constraints, nodes, parallelSubComputation, debugOption)
 	fmt.Println("sub csp computed in ", time.Since(startSubComputation))
@@ -131,7 +131,7 @@ func printSolution(result *[]map[string]int, outputFile string) {
 					fmt.Print(key + " -> " + strconv.Itoa(value) + "\n")
 				}
 			}
-			fmt.Print("Solutions found: " + strconv.Itoa(len(*result)))
+			fmt.Print("Solutions found: " + strconv.Itoa(len(*result)) + "\n")
 		} else {
 			err := os.RemoveAll(outputFile)
 			if err != nil {
