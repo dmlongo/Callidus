@@ -110,7 +110,7 @@ func main() {
 	}
 	fmt.Println("starting yannakaki")
 	startYannakaki := time.Now()
-	Yannakaki(root, yannakakiVersion)
+	Yannakaki(root, yannakakiVersion, "table-"+folderName)
 	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
 	fmt.Println("ended in ", time.Since(start))
 
@@ -120,7 +120,7 @@ func main() {
 
 	if printSol {
 		finalResult := make([]map[string]int, 0)
-		searchResults(root, &finalResult)
+		searchResults(root, &finalResult, folderName)
 		printSolution(&finalResult, outputFile)
 	}
 
@@ -167,7 +167,7 @@ func printSolution(result *[]map[string]int, outputFile string) {
 	}
 }
 
-func searchResults(actual *Node, finalResults *[]map[string]int) {
+func searchResults(actual *Node, finalResults *[]map[string]int, folderName string) {
 	joinVariables := make(map[string]int, 0)
 	if actual.Father != nil {
 		for _, varFather := range actual.Father.Variables {
@@ -182,8 +182,10 @@ func searchResults(actual *Node, finalResults *[]map[string]int) {
 	joinDoneCount := make(map[string]int)
 	newResults := make([]map[string]int, 0)
 	addNewResults := false
+	fileActual, rActual := OpenNodeFile(actual.Id, folderName)
 
-	for _, singleNodeSolution := range actual.PossibleValues {
+	for rActual.Scan() {
+		singleNodeSolution := GetValues(rActual, len(actual.Variables))
 
 		keyJoin := ""
 		for index, value := range singleNodeSolution {
@@ -239,6 +241,64 @@ func searchResults(actual *Node, finalResults *[]map[string]int) {
 
 	}
 
+	fileActual.Close()
+
+	//for _, singleNodeSolution := range actual.PossibleValues {
+	//
+	//	keyJoin := ""
+	//	for index, value := range singleNodeSolution {
+	//		_, isVariableJoin := joinVariables[actual.Variables[index]]
+	//		if isVariableJoin {
+	//			keyJoin += strconv.Itoa(value)
+	//		}
+	//	}
+	//	_, alreadyInMap := joinDoneCount[keyJoin]
+	//	if alreadyInMap {
+	//		joinDoneCount[keyJoin]++
+	//	} else {
+	//		joinDoneCount[keyJoin] = 1
+	//	}
+	//
+	//	if len(joinVariables) >= 1 {
+	//		for _, singleFinalResult := range *finalResults {
+	//			joinOk := true
+	//			for joinKey, joinIndex := range joinVariables {
+	//				if singleFinalResult[joinKey] != singleNodeSolution[joinIndex] {
+	//					joinOk = false
+	//					break
+	//				}
+	//			}
+	//			if joinOk {
+	//
+	//				if joinDoneCount[keyJoin] == 1 {
+	//					for index, value := range singleNodeSolution {
+	//						singleFinalResult[actual.Variables[index]] = value
+	//					}
+	//				} else {
+	//					addNewResults = true
+	//					copyRes := make(map[string]int, 0)
+	//					for key, val := range singleFinalResult {
+	//						copyRes[key] = val
+	//					}
+	//
+	//					for index, value := range singleNodeSolution {
+	//						copyRes[actual.Variables[index]] = value
+	//					}
+	//					newResults = append(newResults, copyRes)
+	//				}
+	//
+	//			}
+	//		}
+	//	} else {
+	//		resTemp := make(map[string]int)
+	//		for index, value := range singleNodeSolution {
+	//			resTemp[actual.Variables[index]] = value
+	//		}
+	//		*finalResults = append(*finalResults, resTemp)
+	//	}
+	//
+	//}
+
 	if addNewResults {
 		for _, singleNewResult := range newResults {
 			*finalResults = append(*finalResults, singleNewResult)
@@ -246,7 +306,7 @@ func searchResults(actual *Node, finalResults *[]map[string]int) {
 	}
 
 	for _, son := range actual.Sons {
-		searchResults(son, finalResults)
+		searchResults(son, finalResults, folderName)
 	}
 
 }
