@@ -108,6 +108,7 @@ func writeVariables(file *os.File, variables []string, domains map[string][]int)
 		}
 	}
 	_, err = file.WriteString("</variables>\n")
+
 	if err != nil {
 		panic(err)
 	}
