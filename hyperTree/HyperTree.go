@@ -16,7 +16,7 @@ func (node *Node) AddSon(node2 *Node) {
 	node2.Father = node
 }
 
-func (node *Node) SamePossibleValues(node2 *Node) bool {
+/*func (node *Node) SamePossibleValues(node2 *Node) bool {
 	if node.Id != node2.Id {
 		return false
 	}
@@ -34,4 +34,4 @@ func (node *Node) SamePossibleValues(node2 *Node) bool {
 		}
 	}
 	return true
-}
+}*/
