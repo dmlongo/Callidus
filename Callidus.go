@@ -114,9 +114,9 @@ func main() {
 	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
 	fmt.Println("ended in ", time.Since(start))
 
-	for _, node := range nodes {
-		fmt.Println(node)
-	}
+	//for _, node := range nodes {
+	//	fmt.Println(node)
+	//}
 
 	if printSol {
 		finalResult := make([]map[string]int, 0)
