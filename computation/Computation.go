@@ -209,7 +209,7 @@ func solve(fileName string, node *Node, debugOption bool) bool {
 		}
 	}(debugOption)
 	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
-	cmd := exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
+	cmd := exec.Command("./libs/nacreWSL", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
