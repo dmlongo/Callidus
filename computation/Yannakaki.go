@@ -81,7 +81,11 @@ func parallelTopDown(actual *Node, joiningIndex *MyMap) {
 	wg.Add(len(actual.Sons))
 	for _, son := range actual.Sons {
 		doSemiJoin(actual, son, joiningIndex)
-		go parallelTopDown(son, joiningIndex)
+		go func(s *Node) {
+			parallelTopDown(s, joiningIndex)
+			wg.Done()
+		}(son)
+
 	}
 	wg.Wait()
 }
