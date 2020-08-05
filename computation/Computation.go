@@ -17,11 +17,21 @@ import (
 
 func SubCSP_Computation(folderName string, domains map[string][]int, constraints []*Constraint, nodes []*Node,
 	parallel bool, debugOption bool) bool {
-	err := os.RemoveAll(folderName)
+	subCspFolder := "subCSP-" + folderName
+	tablesFolder := "tables-" + folderName
+	err := os.RemoveAll(subCspFolder)
 	if err != nil {
 		panic(err)
 	}
-	err = os.Mkdir(folderName, 0777)
+	err = os.RemoveAll(tablesFolder)
+	if err != nil {
+		panic(err)
+	}
+	err = os.Mkdir(subCspFolder, 0777)
+	if err != nil {
+		panic(err)
+	}
+	err = os.Mkdir(tablesFolder, 0777)
 	if err != nil {
 		panic(err)
 	}
@@ -31,9 +41,9 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 	satisfiable := true
 	for _, node := range nodes {
 		if parallel {
-			go createAndSolveSubCSP(folderName, node, domains, constraints, wg, debugOption, satisfiableChan) //TODO: gestire possibile overhead
+			go createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, wg, debugOption, satisfiableChan) //TODO: gestire possibile overhead
 		} else {
-			createAndSolveSubCSP(folderName, node, domains, constraints, wg, debugOption, satisfiableChan)
+			createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, wg, debugOption, satisfiableChan)
 			satisfiable = <-satisfiableChan
 			if !satisfiable {
 				break
@@ -61,11 +71,12 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 	return satisfiable
 }
 
-func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]int, constraints []*Constraint,
+func createAndSolveSubCSP(subCspFolder string, tablesFolder string, node *Node, domains map[string][]int, constraints []*Constraint,
 	wg *sync.WaitGroup, debugOption bool, satisfiableChan chan bool) {
 	defer wg.Done()
-	fileName := folderName + strconv.Itoa(node.Id) + ".xml"
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+	xmlFile := subCspFolder + strconv.Itoa(node.Id) + ".xml"
+	tableFile := tablesFolder + strconv.Itoa(node.Id) + ".table"
+	file, err := os.OpenFile(xmlFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +96,7 @@ func createAndSolveSubCSP(folderName string, node *Node, domains map[string][]in
 		panic(err)
 	}
 
-	satisfiable := solve(fileName, node, debugOption)
+	satisfiable := solve(xmlFile, tableFile, debugOption)
 	satisfiableChan <- satisfiable
 
 }
@@ -199,17 +210,17 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(fileName string, node *Node, debugOption bool) bool {
+func solve(xmlFile string, tableFile string, debugOption bool) bool {
 	defer func(debugOption bool) {
 		if !debugOption {
-			err := os.Remove(fileName)
+			err := os.Remove(xmlFile)
 			if err != nil {
 				panic(err)
 			}
 		}
 	}(debugOption)
 	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
-	cmd := exec.Command("./libs/nacre", fileName, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
+	cmd := exec.Command("./libs/nacre", xmlFile, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
@@ -222,7 +233,11 @@ func solve(fileName string, node *Node, debugOption bool) bool {
 	}
 
 	solFound := false
-	node.PossibleValues = make([][]int, 0)
+	//node.PossibleValues = make([][]int, 0)
+	outputTable, err := os.OpenFile(tableFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+	if err != nil {
+		panic(err)
+	}
 	for {
 		line, err = reader.ReadString('\n')
 		if err == io.EOF && len(line) == 0 {
@@ -230,7 +245,11 @@ func solve(fileName string, node *Node, debugOption bool) bool {
 		}
 		if strings.HasPrefix(line, "v") {
 			reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-			temp := make([]int, len(node.Variables))
+			_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
+			if err != nil {
+				panic(err)
+			}
+			/*temp := make([]int, len(node.Variables))
 			for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
 				v, err := strconv.Atoi(value)
 				if err != nil {
@@ -238,7 +257,7 @@ func solve(fileName string, node *Node, debugOption bool) bool {
 				}
 				temp[i] = v
 			}
-			node.PossibleValues = append(node.PossibleValues, temp)
+			node.PossibleValues = append(node.PossibleValues, temp)*/
 			solFound = true
 		}
 	}

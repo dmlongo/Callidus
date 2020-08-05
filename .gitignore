@@ -14,7 +14,8 @@
 *.out
 
 # Dependency directories (remove the comment below to include it)
-subCSP
+subCSP*
+tables*
 output*
 .idea
 # vendor/

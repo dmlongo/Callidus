@@ -95,7 +95,7 @@ func main() {
 		}
 	}()*/
 	startSubComputation := time.Now()
-	satisfiable := SubCSP_Computation("subCSP-"+folderName, domains, constraints, nodes, parallelSubComputation, debugOption)
+	satisfiable := SubCSP_Computation(folderName, domains, constraints, nodes, parallelSubComputation, debugOption)
 	fmt.Println("sub csp computed in ", time.Since(startSubComputation))
 	if !satisfiable {
 		fmt.Println("NO SOLUTIONS")
@@ -113,6 +113,12 @@ func main() {
 	Yannakaki(root, yannakakiVersion, "table-"+folderName)
 	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
 	fmt.Println("ended in ", time.Since(start))
+	if !debugOption {
+		err := os.RemoveAll("tables-" + folderName)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	//for _, node := range nodes {
 	//	fmt.Println(node)
