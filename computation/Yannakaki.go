@@ -77,10 +77,13 @@ func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
 	}
 }
 func parallelTopDown(actual *Node, joiningIndex *MyMap) {
+	var wg *sync.WaitGroup = &sync.WaitGroup{}
+	wg.Add(len(actual.Sons))
 	for _, son := range actual.Sons {
 		doSemiJoin(actual, son, joiningIndex)
 		go parallelTopDown(son, joiningIndex)
 	}
+	wg.Wait()
 }
 
 // the left node performs the semi join on the right node and update the right's table
