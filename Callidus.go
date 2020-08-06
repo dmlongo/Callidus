@@ -7,7 +7,6 @@ import (
 	. "../Callidus/pre-processing"
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,12 +22,8 @@ func main() {
 	if !strings.HasSuffix(filePath, ".xml") && !strings.HasSuffix(filePath, ".lzma") {
 		panic("The first parameter must be an xml file or lzma file")
 	}
-	yannakakiVersion := selectYannakakiVersion(args) //true if parallel, false if sequential
-	inMemory := selectComputation(args)              // -i for computation in memory, inMemory = true or inMemory = false if not
-	debugOption := selectDebugOption(args)
-	parallelSubComputation := selectSubComputationExec(args)
-	printSol := selectPrintSol(args)
-	outputFile := writeSolution(args)
+
+	SystemSettings.InitSettings(args, filePath)
 
 	fmt.Println("Start Callidus")
 	start := time.Now()
@@ -37,14 +32,12 @@ func main() {
 	startTranslation := time.Now()
 	HypergraphTranslation(filePath)
 	fmt.Println("hypergraph created in ", time.Since(startTranslation))
-	folderName := getFolderName(filePath)
 
-	hypertreeFile := takeHypertreeFile(args, "output"+folderName)
 	hyperTreeRaw := ""
-	if hypertreeFile == "output"+folderName+"hypertree" {
+	if SystemSettings.HypertreeFile == "output"+SystemSettings.FolderName+"hypertree" {
 		fmt.Println("decomposing hypertree")
 		startDecomposition := time.Now()
-		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+folderName, inMemory)
+		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+SystemSettings.FolderName)
 		fmt.Println("hypertree decomposed in ", time.Since(startDecomposition))
 	}
 
@@ -56,30 +49,30 @@ func main() {
 	var nodes []*Node
 	var root *Node
 	go func() {
-		if inMemory {
+		if SystemSettings.InMemory {
 			root, nodes = GetHyperTreeInMemory(&hyperTreeRaw)
 		} else {
-			root, nodes = GetHyperTree(hypertreeFile)
+			root, nodes = GetHyperTree()
 		}
 		wg.Done()
 	}()
 
 	var domains map[string][]int
 	go func() {
-		domains = GetDomains(filePath, "output"+folderName)
+		domains = GetDomains(filePath)
 		wg.Done()
 	}()
 
 	var constraints []*Constraint
 	go func() {
-		constraints = GetConstraints(filePath, "output"+folderName)
+		constraints = GetConstraints(filePath, "output"+SystemSettings.FolderName)
 		wg.Done()
 	}()
 
 	wg.Wait()
 	fmt.Println("hypertree, domain and constraints parsed in ", time.Since(startPrep))
-	if !debugOption {
-		err := os.RemoveAll("output" + folderName)
+	if !SystemSettings.Debug {
+		err := os.RemoveAll("output" + SystemSettings.FolderName)
 		if err != nil {
 			panic(err)
 		}
@@ -93,37 +86,33 @@ func main() {
 		}
 	}()*/
 	startSubComputation := time.Now()
-	satisfiable := SubCSP_Computation(folderName, domains, constraints, nodes, parallelSubComputation, debugOption)
+	satisfiable := SubCSP_Computation(domains, constraints, nodes)
 	fmt.Println("sub csp computed in ", time.Since(startSubComputation))
 	if !satisfiable {
 		fmt.Println("NO SOLUTIONS")
 		return
 	}
-	if !debugOption {
+	if !SystemSettings.Debug {
 
-		err := os.RemoveAll("subCSP-" + folderName)
+		err := os.RemoveAll("subCSP-" + SystemSettings.FolderName)
 		if err != nil {
 			panic(err)
 		}
 	}
 	fmt.Println("starting yannakaki")
 	startYannakaki := time.Now()
-	Yannakaki(root, yannakakiVersion, folderName)
+	Yannakaki(root)
 	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
 	fmt.Println("ended in ", time.Since(start))
 
-	//for _, node := range nodes {
-	//	fmt.Println(node)
-	//}
-
-	if printSol {
+	if SystemSettings.PrintSol {
 		finalResult := make([]map[string]int, 0)
-		searchResults(root, &finalResult, folderName)
-		printSolution(&finalResult, outputFile)
+		searchResults(root, &finalResult)
+		printSolution(&finalResult)
 	}
 
-	if !debugOption {
-		err := os.RemoveAll("tables-" + folderName)
+	if !SystemSettings.Debug {
+		err := os.RemoveAll("tables-" + SystemSettings.FolderName)
 		if err != nil {
 			panic(err)
 		}
@@ -131,9 +120,9 @@ func main() {
 
 }
 
-func printSolution(result *[]map[string]int, outputFile string) {
+func printSolution(result *[]map[string]int) {
 	if len(*result) > 0 {
-		if outputFile == "" {
+		if SystemSettings.Output == "" {
 			for indexResult, res := range *result {
 				fmt.Print("Sol " + strconv.Itoa(indexResult+1) + "\n")
 				for key, value := range res {
@@ -142,11 +131,11 @@ func printSolution(result *[]map[string]int, outputFile string) {
 			}
 			fmt.Print("Solutions found: " + strconv.Itoa(len(*result)) + "\n")
 		} else {
-			err := os.RemoveAll(outputFile)
+			err := os.RemoveAll(SystemSettings.Output)
 			if err != nil {
 				panic(err)
 			}
-			file, err := os.OpenFile(outputFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+			file, err := os.OpenFile(SystemSettings.Output, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
 			if err != nil {
 				panic(err)
 			}
@@ -172,7 +161,7 @@ func printSolution(result *[]map[string]int, outputFile string) {
 	}
 }
 
-func searchResults(actual *Node, finalResults *[]map[string]int, folderName string) {
+func searchResults(actual *Node, finalResults *[]map[string]int) {
 	joinVariables := make(map[string]int, 0)
 	if actual.Father != nil {
 		for _, varFather := range actual.Father.Variables {
@@ -184,127 +173,15 @@ func searchResults(actual *Node, finalResults *[]map[string]int, folderName stri
 			}
 		}
 	}
-	joinDoneCount := make(map[string]int)
-	newResults := make([]map[string]int, 0)
+
 	addNewResults := false
-	fileActual, rActual := OpenNodeFile(actual.Id, folderName)
-	for rActual.Scan() {
-		singleNodeSolution := GetValues(rActual.Text(), len(actual.Variables))
-		if singleNodeSolution == nil {
-			break
-		}
+	newResults := make([]map[string]int, 0)
 
-		keyJoin := ""
-		for index, value := range singleNodeSolution {
-			_, isVariableJoin := joinVariables[actual.Variables[index]]
-			if isVariableJoin {
-				keyJoin += strconv.Itoa(value)
-			}
-		}
-		_, alreadyInMap := joinDoneCount[keyJoin]
-		if alreadyInMap {
-			joinDoneCount[keyJoin]++
-		} else {
-			joinDoneCount[keyJoin] = 1
-		}
-
-		if len(joinVariables) >= 1 {
-			for _, singleFinalResult := range *finalResults {
-				joinOk := true
-				for joinKey, joinIndex := range joinVariables {
-					if singleFinalResult[joinKey] != singleNodeSolution[joinIndex] {
-						joinOk = false
-						break
-					}
-				}
-				if joinOk {
-
-					if joinDoneCount[keyJoin] == 1 {
-						for index, value := range singleNodeSolution {
-							singleFinalResult[actual.Variables[index]] = value
-						}
-					} else {
-						addNewResults = true
-						copyRes := make(map[string]int, 0)
-						for key, val := range singleFinalResult {
-							copyRes[key] = val
-						}
-
-						for index, value := range singleNodeSolution {
-							copyRes[actual.Variables[index]] = value
-						}
-						newResults = append(newResults, copyRes)
-					}
-
-				}
-			}
-		} else {
-			resTemp := make(map[string]int)
-			for index, value := range singleNodeSolution {
-				resTemp[actual.Variables[index]] = value
-			}
-			*finalResults = append(*finalResults, resTemp)
-		}
-
+	if SystemSettings.InMemory {
+		addNewResults, newResults = searchNewResultsInMemory(actual, &joinVariables, finalResults)
+	} else {
+		addNewResults, newResults = searchNewResultsOnFile(actual, &joinVariables, finalResults)
 	}
-
-	fileActual.Close()
-
-	//for _, singleNodeSolution := range actual.PossibleValues {
-	//
-	//	keyJoin := ""
-	//	for index, value := range singleNodeSolution {
-	//		_, isVariableJoin := joinVariables[actual.Variables[index]]
-	//		if isVariableJoin {
-	//			keyJoin += strconv.Itoa(value)
-	//		}
-	//	}
-	//	_, alreadyInMap := joinDoneCount[keyJoin]
-	//	if alreadyInMap {
-	//		joinDoneCount[keyJoin]++
-	//	} else {
-	//		joinDoneCount[keyJoin] = 1
-	//	}
-	//
-	//	if len(joinVariables) >= 1 {
-	//		for _, singleFinalResult := range *finalResults {
-	//			joinOk := true
-	//			for joinKey, joinIndex := range joinVariables {
-	//				if singleFinalResult[joinKey] != singleNodeSolution[joinIndex] {
-	//					joinOk = false
-	//					break
-	//				}
-	//			}
-	//			if joinOk {
-	//
-	//				if joinDoneCount[keyJoin] == 1 {
-	//					for index, value := range singleNodeSolution {
-	//						singleFinalResult[actual.Variables[index]] = value
-	//					}
-	//				} else {
-	//					addNewResults = true
-	//					copyRes := make(map[string]int, 0)
-	//					for key, val := range singleFinalResult {
-	//						copyRes[key] = val
-	//					}
-	//
-	//					for index, value := range singleNodeSolution {
-	//						copyRes[actual.Variables[index]] = value
-	//					}
-	//					newResults = append(newResults, copyRes)
-	//				}
-	//
-	//			}
-	//		}
-	//	} else {
-	//		resTemp := make(map[string]int)
-	//		for index, value := range singleNodeSolution {
-	//			resTemp[actual.Variables[index]] = value
-	//		}
-	//		*finalResults = append(*finalResults, resTemp)
-	//	}
-	//
-	//}
 
 	if addNewResults {
 		for _, singleNewResult := range newResults {
@@ -313,99 +190,93 @@ func searchResults(actual *Node, finalResults *[]map[string]int, folderName stri
 	}
 
 	for _, son := range actual.Sons {
-		searchResults(son, finalResults, folderName)
+		searchResults(son, finalResults)
 	}
 
 }
 
-func contains(args []string, param string) int {
-	for i := 0; i < len(args); i++ {
-		if args[i] == param {
-			return i
+func searchNewResultsInMemory(actual *Node, joinVariables *map[string]int, finalResults *[]map[string]int) (bool, []map[string]int) {
+	joinDoneCount := make(map[string]int)
+	newResults := make([]map[string]int, 0)
+	addNewResults := false
+
+	for _, singleNodeSolution := range actual.PossibleValues {
+		computationNewResults(actual, singleNodeSolution, joinVariables, &joinDoneCount, finalResults, &addNewResults, &newResults)
+	}
+
+	return addNewResults, newResults
+}
+
+func searchNewResultsOnFile(actual *Node, joinVariables *map[string]int, finalResults *[]map[string]int) (bool, []map[string]int) {
+	joinDoneCount := make(map[string]int)
+	newResults := make([]map[string]int, 0)
+	addNewResults := false
+
+	fileActual, rActual := OpenNodeFile(actual.Id)
+	for rActual.Scan() {
+		singleNodeSolution := GetValues(rActual.Text(), len(actual.Variables))
+		computationNewResults(actual, singleNodeSolution, joinVariables, &joinDoneCount, finalResults, &addNewResults, &newResults)
+	}
+
+	fileActual.Close()
+
+	return addNewResults, newResults
+}
+
+func computationNewResults(actual *Node, singleNodeSolution []int, joinVariables *map[string]int, joinDoneCount *map[string]int, finalResults *[]map[string]int, addNewResults *bool, newResults *[]map[string]int) {
+	if singleNodeSolution == nil {
+		return
+	}
+
+	keyJoin := ""
+	for index, value := range singleNodeSolution {
+		_, isVariableJoin := (*joinVariables)[actual.Variables[index]]
+		if isVariableJoin {
+			keyJoin += strconv.Itoa(value)
 		}
 	}
-	return -1
-}
+	_, alreadyInMap := (*joinDoneCount)[keyJoin]
+	if alreadyInMap {
+		(*joinDoneCount)[keyJoin]++
+	} else {
+		(*joinDoneCount)[keyJoin] = 1
+	}
 
-func takeHypertreeFile(args []string, folderName string) string {
-	i := contains(args, "-h")
-	if i == -1 {
-		i = contains(args, "--hypertree")
-	}
-	if i != -1 {
-		return args[i+1]
-	}
-	return folderName + "hypertree"
-}
+	if len(*joinVariables) >= 1 {
+		for _, singleFinalResult := range *finalResults {
+			joinOk := true
+			for joinKey, joinIndex := range *joinVariables {
+				if singleFinalResult[joinKey] != singleNodeSolution[joinIndex] {
+					joinOk = false
+					break
+				}
+			}
+			if joinOk {
 
-func selectYannakakiVersion(args []string) bool {
-	i := contains(args, "-y")
-	if i == -1 {
-		i = contains(args, "--yannakaki")
-	}
-	if i != -1 {
-		version := args[i+1]
-		if version != "s" && version != "p" {
-			panic(args[i] + " must be followed by 's' or 'p'")
+				if (*joinDoneCount)[keyJoin] == 1 {
+					for index, value := range singleNodeSolution {
+						singleFinalResult[actual.Variables[index]] = value
+					}
+				} else {
+					*addNewResults = true
+					copyRes := make(map[string]int, 0)
+					for key, val := range singleFinalResult {
+						copyRes[key] = val
+					}
+
+					for index, value := range singleNodeSolution {
+						copyRes[actual.Variables[index]] = value
+					}
+					*newResults = append(*newResults, copyRes)
+				}
+
+			}
 		}
-		if version == "p" {
-			return true
+	} else {
+		resTemp := make(map[string]int)
+		for index, value := range singleNodeSolution {
+			resTemp[actual.Variables[index]] = value
 		}
+		*finalResults = append(*finalResults, resTemp)
 	}
-	return false
-}
-
-func selectComputation(args []string) bool {
-	i := contains(args, "-i")
-	if i != -1 {
-		return true
-	}
-	return false
-}
-
-func selectDebugOption(args []string) bool {
-	if contains(args, "-d") != -1 || contains(args, "--debug") != -1 {
-		return true
-	}
-	return false
-}
-
-func selectSubComputationExec(args []string) bool {
-	if i := contains(args, "-sc"); i != -1 {
-		if args[i+1] != "p" && args[i+1] != "s" {
-			panic(args[i] + " must be followed by 's' or 'p'")
-		}
-		if args[i+1] == "s" {
-			return false
-		}
-	}
-	return true
-}
-
-func selectPrintSol(args []string) bool {
-	if i := contains(args, "-printSol"); i != -1 {
-		if args[i+1] != "yes" && args[i+1] != "no" {
-			panic(args[i] + " must be followed by 'yes' or 'no'")
-		}
-		if args[i+1] == "no" {
-			return false
-		}
-	}
-	return true
-}
-
-func getFolderName(filePath string) string {
-	re := regexp.MustCompile(".*/")
-	folderName := re.ReplaceAllString(filePath, "")
-	re = regexp.MustCompile("\\..*")
-	folderName = re.ReplaceAllString(folderName, "")
-	folderName = folderName + "/"
-	return folderName
-}
-
-func writeSolution(args []string) string {
-	if i := contains(args, "-output"); i != -1 {
-		return args[i+1]
-	}
-	return ""
 }

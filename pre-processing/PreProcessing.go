@@ -72,8 +72,8 @@ func HypertreeDecomposition(filePath string, folderName string, inMemory bool) s
 	}
 }
 
-func GetHyperTree(filePath string) (*Node, []*Node) {
-	file, err := os.Open(filePath)
+func GetHyperTree() (*Node, []*Node) {
+	file, err := os.Open(SystemSettings.HypertreeFile)
 	if err != nil {
 		panic(err)
 	}
@@ -233,14 +233,14 @@ func GetConstraints(filePath string, folderName string) []*Constraint {
 	return constraints
 }
 
-func GetDomains(filePath string, folderName string) map[string][]int {
+func GetDomains(filePath string) map[string][]int {
 	var domainPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		domainPath = strings.ReplaceAll(filePath, ".xml", "domain.hg")
 	} else if strings.HasSuffix(filePath, ".lzma") {
 		domainPath = strings.ReplaceAll(filePath, ".lzma", "domain.hg")
 	}
-	domainPath = fmt.Sprintf(folderName + domainPath)
+	domainPath = fmt.Sprintf("output" + SystemSettings.FolderName + domainPath)
 	file, err := os.Open(domainPath)
 	if err != nil {
 		panic(err)

@@ -15,10 +15,9 @@ import (
 	"sync"
 )
 
-func SubCSP_Computation(folderName string, domains map[string][]int, constraints []*Constraint, nodes []*Node,
-	parallel bool, debugOption bool) bool {
-	subCspFolder := "subCSP-" + folderName
-	tablesFolder := "tables-" + folderName
+func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nodes []*Node) bool {
+	subCspFolder := "subCSP-" + SystemSettings.FolderName
+	tablesFolder := "tables-" + SystemSettings.FolderName
 	err := os.RemoveAll(subCspFolder)
 	if err != nil {
 		panic(err)
