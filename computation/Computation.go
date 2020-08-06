@@ -3,6 +3,7 @@ package computation
 import (
 	. "../../Callidus/constraint"
 	. "../../Callidus/hyperTree"
+	. "../../Callidus/pre-processing"
 	"bufio"
 	"fmt"
 	"io"
@@ -15,10 +16,9 @@ import (
 	"sync"
 )
 
-func SubCSP_Computation(folderName string, domains map[string][]int, constraints []*Constraint, nodes []*Node,
-	parallel bool, debugOption bool) bool {
-	subCspFolder := "subCSP-" + folderName
-	tablesFolder := "tables-" + folderName
+func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nodes []*Node) bool {
+	subCspFolder := "subCSP-" + SystemSettings.FolderName
+	tablesFolder := "tables-" + SystemSettings.FolderName
 	err := os.RemoveAll(subCspFolder)
 	if err != nil {
 		panic(err)
@@ -40,10 +40,10 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 	satisfiableChan := make(chan bool, len(nodes))
 	satisfiable := true
 	for _, node := range nodes {
-		if parallel {
-			go createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, wg, debugOption, satisfiableChan) //TODO: gestire possibile overhead
+		if SystemSettings.ParallelSC {
+			go createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, wg, satisfiableChan) //TODO: gestire possibile overhead
 		} else {
-			createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, wg, debugOption, satisfiableChan)
+			createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, wg, satisfiableChan)
 			satisfiable = <-satisfiableChan
 			if !satisfiable {
 				break
@@ -52,7 +52,7 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 	}
 	wg.Wait()
 	cont := 0
-	if parallel {
+	if SystemSettings.ParallelSC {
 		cont = 0
 		exit := false
 		for !exit {
@@ -72,7 +72,7 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 }
 
 func createAndSolveSubCSP(subCspFolder string, tablesFolder string, node *Node, domains map[string][]int, constraints []*Constraint,
-	wg *sync.WaitGroup, debugOption bool, satisfiableChan chan bool) {
+	wg *sync.WaitGroup, satisfiableChan chan bool) {
 	defer wg.Done()
 	xmlFile := subCspFolder + strconv.Itoa(node.Id) + ".xml"
 	tableFile := tablesFolder + strconv.Itoa(node.Id) + ".table"
@@ -96,7 +96,7 @@ func createAndSolveSubCSP(subCspFolder string, tablesFolder string, node *Node, 
 		panic(err)
 	}
 
-	satisfiable := solve(xmlFile, tableFile, debugOption)
+	satisfiable := solve(xmlFile, tableFile)
 	satisfiableChan <- satisfiable
 
 }
@@ -210,15 +210,15 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(xmlFile string, tableFile string, debugOption bool) bool {
-	defer func(debugOption bool) {
-		if !debugOption {
+func solve(xmlFile string, tableFile string) bool {
+	defer func() {
+		if !SystemSettings.Debug {
 			err := os.Remove(xmlFile)
 			if err != nil {
 				panic(err)
 			}
 		}
-	}(debugOption)
+	}()
 	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
 	cmd := exec.Command("./libs/nacre", xmlFile, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
 	out, err := cmd.StdoutPipe()

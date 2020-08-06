@@ -30,7 +30,7 @@ func HypergraphTranslation(filePath string) {
 	}
 }
 
-func HypertreeDecomposition(filePath string, folderName string, algorithm string, inMemory bool, computeWidth bool) string {
+func HypertreeDecomposition(filePath string, folderName string) string {
 	var hypergraphPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		hypergraphPath = strings.ReplaceAll(filePath, ".xml", "hypergraph.hg")
@@ -49,7 +49,7 @@ func HypertreeDecomposition(filePath string, folderName string, algorithm string
 
 	//TODO: we must find another way to write it
 	var width string
-	if computeWidth {
+	if SystemSettings.ComputeWidth {
 		cmd := exec.Command("python3", "libs/widthComputation.py", hypergraphPath)
 		byte, err := cmd.Output()
 		var out bytes.Buffer
@@ -62,13 +62,13 @@ func HypertreeDecomposition(filePath string, folderName string, algorithm string
 		width = strings.ReplaceAll(string(byte), "\n", "")
 	}
 	var cmd *exec.Cmd
-	if inMemory {
-		if computeWidth {
+	if SystemSettings.InMemory {
+		if SystemSettings.ComputeWidth {
 			cmd = exec.Command(name, "-width", width, "-graph", hypergraphPath, "-det")
 		} else {
-			if algorithm == "det" {
+			if SystemSettings.BalancedAlgorithm == "det" {
 				cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det")
-			} else if algorithm == "balDet" {
+			} else if SystemSettings.BalancedAlgorithm == "balDet" {
 				cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1")
 			}
 		}
@@ -82,12 +82,12 @@ func HypertreeDecomposition(filePath string, folderName string, algorithm string
 		}
 		return string(byte)
 	} else {
-		if computeWidth {
+		if SystemSettings.ComputeWidth {
 			cmd = exec.Command(name, "-width", width, "-graph", hypergraphPath, "-det", "-gml", folderName+"hypertree")
 		} else {
-			if algorithm == "det" {
+			if SystemSettings.BalancedAlgorithm == "det" {
 				cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det", "-gml", folderName+"hypertree")
-			} else if algorithm == "balDet" {
+			} else if SystemSettings.BalancedAlgorithm == "balDet" {
 				cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1", "-gml", folderName+"hypertree")
 			}
 		}
@@ -102,8 +102,8 @@ func HypertreeDecomposition(filePath string, folderName string, algorithm string
 	}
 }
 
-func GetHyperTree(filePath string) (*Node, []*Node) {
-	file, err := os.Open(filePath)
+func GetHyperTree() (*Node, []*Node) {
+	file, err := os.Open(SystemSettings.HypertreeFile)
 	if err != nil {
 		panic(err)
 	}
@@ -263,14 +263,14 @@ func GetConstraints(filePath string, folderName string) []*Constraint {
 	return constraints
 }
 
-func GetDomains(filePath string, folderName string) map[string][]int {
+func GetDomains(filePath string) map[string][]int {
 	var domainPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		domainPath = strings.ReplaceAll(filePath, ".xml", "domain.hg")
 	} else if strings.HasSuffix(filePath, ".lzma") {
 		domainPath = strings.ReplaceAll(filePath, ".lzma", "domain.hg")
 	}
-	domainPath = fmt.Sprintf(folderName + domainPath)
+	domainPath = fmt.Sprintf("output" + SystemSettings.FolderName + domainPath)
 	file, err := os.Open(domainPath)
 	if err != nil {
 		panic(err)
