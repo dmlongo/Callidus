@@ -4,7 +4,6 @@ import (
 	. "../../Callidus/hyperTree"
 	. "../../Callidus/pre-processing"
 	"bufio"
-	"io"
 	"os"
 	"regexp"
 	"strconv"
@@ -115,6 +114,18 @@ func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int) {
 
 	fileRight, rRight := OpenNodeFile(right.Id)
 	fileLeft, rLeft := OpenNodeFile(left.Id)
+	possibleValuesLeft := make([][]int, 0)
+	for rLeft.Scan() {
+		valuesLeft := GetValues(rLeft.Text(), len(left.Variables))
+		if valuesLeft == nil {
+			break
+		}
+		if valuesLeft[0] == -1 {
+			return
+		}
+		possibleValuesLeft = append(possibleValuesLeft, valuesLeft)
+	}
+	fileLeft.Close()
 
 	possibleValues := make([][]int, 0)
 
@@ -127,16 +138,9 @@ func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int) {
 			return
 		}
 
-		fileLeft.Seek(0, io.SeekStart)
-		rLeft = bufio.NewScanner(fileLeft)
-		for rLeft.Scan() {
-			valuesLeft := GetValues(rLeft.Text(), len(left.Variables))
-			if valuesLeft == nil {
-				break
-			}
-			if valuesLeft[0] == -1 {
-				return
-			}
+		//fileLeft.Seek(0, io.SeekStart)
+		//rLeft = bufio.NewScanner(fileLeft)
+		for _, valuesLeft := range possibleValuesLeft {
 			tupleMatch := true
 			for _, rowIndex := range indexJoin {
 				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
@@ -152,7 +156,7 @@ func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int) {
 	}
 
 	fileRight.Close()
-	fileLeft.Close()
+	//fileLeft.Close()
 
 	fileRight, err := os.OpenFile("tables-"+SystemSettings.FolderName+strconv.Itoa(right.Id)+".table", os.O_TRUNC|os.O_WRONLY, 0777)
 	if err != nil {
