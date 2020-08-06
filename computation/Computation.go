@@ -3,6 +3,7 @@ package computation
 import (
 	. "../../Callidus/constraint"
 	. "../../Callidus/hyperTree"
+	. "../../Callidus/pre-processing"
 	"bufio"
 	"fmt"
 	"io"
@@ -35,7 +36,7 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 		panic(err)
 	}
 	satisfiable := true
-	if parallel {
+	if SystemSettings.ParallelSC {
 		subCspSemaphore := &sync.WaitGroup{}
 		subCspSemaphore.Add(len(nodes))
 		checkSatisfiableSemaphore := &sync.WaitGroup{}
@@ -43,7 +44,7 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 		satisfiableChan := make(chan bool, len(nodes))
 		for _, node := range nodes {
 			go createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, subCspSemaphore,
-				debugOption, satisfiableChan, true) //TODO: gestire possibile overhead
+				SystemSettings.Debug, satisfiableChan, true) //TODO: gestire possibile overhead
 		}
 		go func() {
 			defer checkSatisfiableSemaphore.Done()
@@ -59,7 +60,7 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 	} else {
 		for _, node := range nodes {
 			satisfiable = createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, nil,
-				debugOption, nil, false)
+				SystemSettings.Debug, nil, false)
 			if !satisfiable {
 				break
 			}

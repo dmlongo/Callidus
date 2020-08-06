@@ -37,7 +37,7 @@ func main() {
 	if SystemSettings.HypertreeFile == "output"+SystemSettings.FolderName+"hypertree" {
 		fmt.Println("decomposing hypertree")
 		startDecomposition := time.Now()
-		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+SystemSettings.FolderName)
+		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+SystemSettings.FolderName, SystemSettings.InMemory)
 		fmt.Println("hypertree decomposed in ", time.Since(startDecomposition))
 	}
 
