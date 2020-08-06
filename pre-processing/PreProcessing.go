@@ -30,7 +30,7 @@ func HypergraphTranslation(filePath string) {
 	}
 }
 
-func HypertreeDecomposition(filePath string, folderName string, algorithm string, inMemory bool, computeWidth bool) string {
+func HypertreeDecomposition(filePath string, folderName string, inMemory bool) string {
 	var hypergraphPath string
 	if strings.HasSuffix(filePath, ".xml") {
 		hypergraphPath = strings.ReplaceAll(filePath, ".xml", "hypergraph.hg")
@@ -47,32 +47,10 @@ func HypertreeDecomposition(filePath string, folderName string, algorithm string
 		name = "./libs/balancedLinux"
 	}
 
-	//TODO: we must find another way to write it
-	var width string
-	if computeWidth {
-		cmd := exec.Command("python3", "libs/widthComputation.py", hypergraphPath)
-		byte, err := cmd.Output()
-		var out bytes.Buffer
-		var stderr bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = &stderr
-		if err != nil {
-			panic(fmt.Sprint(err) + ": " + stderr.String())
-		}
-		width = strings.ReplaceAll(string(byte), "\n", "")
-	}
 	var cmd *exec.Cmd
 	if inMemory {
-		if computeWidth {
-			cmd = exec.Command(name, "-width", width, "-graph", hypergraphPath, "-det")
-		} else {
-			if algorithm == "det" {
-				cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det")
-			} else if algorithm == "balDet" {
-				cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1")
-			}
-		}
-		byte, err := cmd.Output()
+		cmd = exec.Command(name, "-graph", hypergraphPath, "-approx", "3600", "-det")
+		output, err := cmd.Output()
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
@@ -80,17 +58,9 @@ func HypertreeDecomposition(filePath string, folderName string, algorithm string
 		if err != nil {
 			panic(fmt.Sprint(err) + ": " + stderr.String())
 		}
-		return string(byte)
+		return string(output)
 	} else {
-		if computeWidth {
-			cmd = exec.Command(name, "-width", width, "-graph", hypergraphPath, "-det", "-gml", folderName+"hypertree")
-		} else {
-			if algorithm == "det" {
-				cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-det", "-gml", folderName+"hypertree")
-			} else if algorithm == "balDet" {
-				cmd = exec.Command(name, "-exact", "-graph", hypergraphPath, "-balDet", "1", "-gml", folderName+"hypertree")
-			}
-		}
+		cmd = exec.Command(name, "-graph", hypergraphPath, "-approx", "3600", "-det", "-gml", folderName+"hypertree")
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out

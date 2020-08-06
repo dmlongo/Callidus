@@ -27,9 +27,7 @@ func main() {
 	inMemory := selectComputation(args)              // -i for computation in memory, inMemory = true or inMemory = false if not
 	debugOption := selectDebugOption(args)
 	parallelSubComputation := selectSubComputationExec(args)
-	balancedAlgorithm := selectBalancedAlgorithm(args)
 	printSol := selectPrintSol(args)
-	computeWidth := selectComputeWidth(args)
 	outputFile := writeSolution(args)
 
 	fmt.Println("Start Callidus")
@@ -46,7 +44,7 @@ func main() {
 	if hypertreeFile == "output"+folderName+"hypertree" {
 		fmt.Println("decomposing hypertree")
 		startDecomposition := time.Now()
-		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+folderName, balancedAlgorithm, inMemory, computeWidth)
+		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+folderName, inMemory)
 		fmt.Println("hypertree decomposed in ", time.Since(startDecomposition))
 	}
 
@@ -384,20 +382,6 @@ func selectSubComputationExec(args []string) bool {
 	return true
 }
 
-func selectBalancedAlgorithm(args []string) string {
-	i := contains(args, "-b")
-	if i == -1 {
-		i = contains(args, "--balanced")
-	}
-	if i != -1 {
-		if args[i+1] != "det" && args[i+1] != "balDet" {
-			panic(args[i] + " must be followed by 'det' or 'balDet'")
-		}
-		return args[i+1]
-	}
-	return "det"
-}
-
 func selectPrintSol(args []string) bool {
 	if i := contains(args, "-printSol"); i != -1 {
 		if args[i+1] != "yes" && args[i+1] != "no" {
@@ -417,18 +401,6 @@ func getFolderName(filePath string) string {
 	folderName = re.ReplaceAllString(folderName, "")
 	folderName = folderName + "/"
 	return folderName
-}
-
-func selectComputeWidth(args []string) bool {
-	if i := contains(args, "-computeWidth"); i != -1 {
-		if args[i+1] != "yes" && args[i+1] != "no" {
-			panic(args[i] + " must be followed by 'yes' or 'no'")
-		}
-		if args[i+1] == "no" {
-			return false
-		}
-	}
-	return true
 }
 
 func writeSolution(args []string) string {
