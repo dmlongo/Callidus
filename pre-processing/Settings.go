@@ -23,9 +23,7 @@ func (settings *Settings) InitSettings(args []string, filePath string) {
 	settings.InMemory = selectComputation(args)               // -i for computation in memory, inMemory = true or inMemory = false if not
 	settings.Debug = selectDebugOption(args)
 	settings.ParallelSC = selectSubComputationExec(args)
-	settings.BalancedAlgorithm = selectBalancedAlgorithm(args)
 	settings.PrintSol = selectPrintSol(args)
-	settings.ComputeWidth = selectComputeWidth(args)
 	settings.Output = writeSolution(args)
 	settings.FolderName = getFolderName(filePath)
 	settings.HypertreeFile = takeHypertreeFile(args, "output"+settings.FolderName)
@@ -95,34 +93,8 @@ func selectSubComputationExec(args []string) bool {
 	return true
 }
 
-func selectBalancedAlgorithm(args []string) string {
-	i := contains(args, "-b")
-	if i == -1 {
-		i = contains(args, "--balanced")
-	}
-	if i != -1 {
-		if args[i+1] != "det" && args[i+1] != "balDet" {
-			panic(args[i] + " must be followed by 'det' or 'balDet'")
-		}
-		return args[i+1]
-	}
-	return "det"
-}
-
 func selectPrintSol(args []string) bool {
 	if i := contains(args, "-printSol"); i != -1 {
-		if args[i+1] != "yes" && args[i+1] != "no" {
-			panic(args[i] + " must be followed by 'yes' or 'no'")
-		}
-		if args[i+1] == "no" {
-			return false
-		}
-	}
-	return true
-}
-
-func selectComputeWidth(args []string) bool {
-	if i := contains(args, "-computeWidth"); i != -1 {
 		if args[i+1] != "yes" && args[i+1] != "no" {
 			panic(args[i] + " must be followed by 'yes' or 'no'")
 		}

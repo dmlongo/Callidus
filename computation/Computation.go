@@ -43,8 +43,7 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 		checkSatisfiableSemaphore.Add(1)
 		satisfiableChan := make(chan bool, len(nodes))
 		for _, node := range nodes {
-			go createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, subCspSemaphore,
-				SystemSettings.Debug, satisfiableChan, true) //TODO: gestire possibile overhead
+			go createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, subCspSemaphore, satisfiableChan)
 		}
 		go func() {
 			defer checkSatisfiableSemaphore.Done()
@@ -59,8 +58,7 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 		checkSatisfiableSemaphore.Wait()
 	} else {
 		for _, node := range nodes {
-			satisfiable = createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, nil,
-				SystemSettings.Debug, nil, false)
+			satisfiable = createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, nil, nil)
 			if !satisfiable {
 				break
 			}
@@ -70,8 +68,8 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 }
 
 func createAndSolveSubCSP(subCspFolder string, tablesFolder string, node *Node, domains map[string][]int, constraints []*Constraint,
-	wg *sync.WaitGroup, debugOption bool, satisfiableChan chan bool, parallel bool) bool {
-	if parallel {
+	wg *sync.WaitGroup, satisfiableChan chan bool) bool {
+	if SystemSettings.ParallelSC {
 		defer wg.Done()
 	}
 	xmlFile := subCspFolder + strconv.Itoa(node.Id) + ".xml"
@@ -96,11 +94,11 @@ func createAndSolveSubCSP(subCspFolder string, tablesFolder string, node *Node, 
 		panic(err)
 	}
 
-	if parallel {
-		satisfiable := solve(xmlFile, tableFile, debugOption, satisfiableChan, true)
+	if SystemSettings.ParallelSC {
+		satisfiable := solve(xmlFile, tableFile, satisfiableChan, node)
 		satisfiableChan <- satisfiable
 	} else {
-		return solve(xmlFile, tableFile, debugOption, nil, false)
+		return solve(xmlFile, tableFile, nil, node)
 	}
 	return false
 }
@@ -214,7 +212,7 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(xmlFile string, tableFile string, debugOption bool, satisfiableChan chan bool, parallel bool) bool {
+func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *Node) bool {
 	defer func(debugOption bool) {
 		if !debugOption {
 			err := os.Remove(xmlFile)
@@ -222,7 +220,7 @@ func solve(xmlFile string, tableFile string, debugOption bool, satisfiableChan c
 				panic(err)
 			}
 		}
-	}(debugOption)
+	}(SystemSettings.Debug)
 	cmd := exec.Command("./libs/nacre", xmlFile, "-complete", "-sols", "-verb=3")
 	out, err := cmd.StdoutPipe()
 	if err != nil {
@@ -236,12 +234,16 @@ func solve(xmlFile string, tableFile string, debugOption bool, satisfiableChan c
 	}
 
 	solFound := false
-	//node.PossibleValues = make([][]int, 0)
-	outputTable, err := os.OpenFile(tableFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+	var outputTable *os.File = nil
+	if SystemSettings.InMemory {
+		node.PossibleValues = make([][]int, 0)
+	} else {
+		outputTable, err = os.OpenFile(tableFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+	}
 	if err != nil {
 		panic(err)
 	}
-	if parallel {
+	if SystemSettings.ParallelSC {
 		exit := false
 		for !exit {
 			select {
@@ -262,19 +264,22 @@ func solve(xmlFile string, tableFile string, debugOption bool, satisfiableChan c
 				}
 				if strings.HasPrefix(line, "v") {
 					reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-					_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
-					if err != nil {
-						panic(err)
-					}
-					/*temp := make([]int, len(node.Variables))
-					for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
-						v, err := strconv.Atoi(value)
+					if SystemSettings.InMemory {
+						temp := make([]int, len(node.Variables))
+						for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+							v, err := strconv.Atoi(value)
+							if err != nil {
+								panic(err)
+							}
+							temp[i] = v
+						}
+						node.PossibleValues = append(node.PossibleValues, temp)
+					} else {
+						_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
 						if err != nil {
 							panic(err)
 						}
-						temp[i] = v
 					}
-					node.PossibleValues = append(node.PossibleValues, temp)*/
 					solFound = true
 				}
 			}
@@ -288,19 +293,22 @@ func solve(xmlFile string, tableFile string, debugOption bool, satisfiableChan c
 			}
 			if strings.HasPrefix(line, "v") {
 				reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-				_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
-				if err != nil {
-					panic(err)
-				}
-				/*temp := make([]int, len(node.Variables))
-				for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
-					v, err := strconv.Atoi(value)
+				if SystemSettings.InMemory {
+					temp := make([]int, len(node.Variables))
+					for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+						v, err := strconv.Atoi(value)
+						if err != nil {
+							panic(err)
+						}
+						temp[i] = v
+					}
+					node.PossibleValues = append(node.PossibleValues, temp)
+				} else {
+					_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
 					if err != nil {
 						panic(err)
 					}
-					temp[i] = v
 				}
-				node.PossibleValues = append(node.PossibleValues, temp)*/
 				solFound = true
 			}
 		}
