@@ -82,6 +82,7 @@ func parallelBottomUp(actual *Node, joiningIndex *MyMap, folderName string) {
 		actual.Father.Lock.Unlock()
 	}
 }
+
 func parallelTopDown(actual *Node, joiningIndex *MyMap, folderName string) {
 	var wg *sync.WaitGroup = &sync.WaitGroup{}
 	wg.Add(len(actual.Sons))
@@ -99,43 +100,18 @@ func parallelTopDown(actual *Node, joiningIndex *MyMap, folderName string) {
 // the left node performs the semi join on the right node and update the right's table
 //TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
 func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap, folderName string) {
-	indexJoin := make([][]int, 0)
-	joiningIndex.lock.RLock()
-	val, ok := joiningIndex.hash[IdJoiningIndex{x: left.Id, y: right.Id}]
-	joiningIndex.lock.RUnlock()
-	if ok {
-		indexJoin = val
-	} else {
-		invertedIndex := make([][]int, 0)
-		for iLeft, varLeft := range left.Variables {
-			for iRight, varRight := range right.Variables {
-				if varLeft == varRight {
-					invertedIndex = append(invertedIndex, []int{iRight, iLeft})
-					indexJoin = append(indexJoin, []int{iLeft, iRight})
-					break
-				}
-			}
-		}
-		joiningIndex.lock.Lock()
-		joiningIndex.hash[IdJoiningIndex{x: right.Id, y: left.Id}] = invertedIndex
-		joiningIndex.lock.Unlock()
-	}
-	//fmt.Println(left.Id, right.Id)
-	//fmt.Println("Joining index", indexJoin)
-	//fileRight, rRight := OpenNodeFile(right.Id, folderName)
-	//fileLeft, rLeft := OpenNodeFile(left.Id, folderName)
-	//for rLeft.Scan() {
-	//	valuesLeft := GetValues(rLeft, len(left.Variables))
-	//	fmt.Println(valuesLeft)
-	//}
-	//fmt.Println("\n")
-	//for rRight.Scan() {
-	//	valuesRight := GetValues(rRight, len(right.Variables))
-	//	fmt.Println(valuesRight)
-	//}
+	indexJoin := searchJoiningIndex(left, right, joiningIndex)
+
+	//if inMemory{
+	//	semiJoinInMemory(left, right, indexJoin)
+	//}else{
 	//
-	//fileLeft.Close()
-	//fileRight.Close()
+	//}
+	semiJoinOnFile(left, right, indexJoin, folderName)
+
+}
+
+func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int, folderName string) {
 
 	fileRight, rRight := OpenNodeFile(right.Id, folderName)
 	fileLeft, rLeft := OpenNodeFile(left.Id, folderName)
@@ -144,7 +120,6 @@ func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap, folderName string)
 
 	for rRight.Scan() {
 		valuesRight := GetValues(rRight.Text(), len(right.Variables))
-		//fmt.Println(valuesRight)
 		if valuesRight == nil {
 			break
 		}
@@ -154,9 +129,7 @@ func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap, folderName string)
 
 		fileLeft.Seek(0, io.SeekStart)
 		rLeft = bufio.NewScanner(fileLeft)
-		i := 0
 		for rLeft.Scan() {
-			//fmt.Println(fileLeft.Name(), i)
 			valuesLeft := GetValues(rLeft.Text(), len(left.Variables))
 			if valuesLeft == nil {
 				break
@@ -175,11 +148,8 @@ func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap, folderName string)
 				possibleValues = append(possibleValues, valuesRight)
 				break
 			}
-			i++
 		}
 	}
-	//fmt.Println(possibleValues)
-	//fmt.Println("\n\n")
 
 	fileRight.Close()
 	fileLeft.Close()
@@ -206,27 +176,55 @@ func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap, folderName string)
 	}
 
 	fileRight.Close()
+}
 
-	//for index, valuesRight := range right.PossibleValues {
-	//	for _, valuesLeft := range left.PossibleValues {
-	//		tupleMatch := true
-	//		for _, rowIndex := range indexJoin {
-	//			if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
-	//				tupleMatch = false
-	//				break
-	//			}
-	//		}
-	//		if tupleMatch {
-	//			trashRow[index] = true
-	//			break
-	//		}
-	//	}
-	//}
-	//for i := len(trashRow) - 1; i >= 0; i-- {
-	//	if !trashRow[i] {
-	//		right.PossibleValues = delByIndex(i, right.PossibleValues)
-	//	}
-	//}
+func semiJoinInMemory(left *Node, right *Node, indexJoin [][]int) {
+	trashRow := make([]bool, len(right.PossibleValues))
+	for index, valuesRight := range right.PossibleValues {
+		for _, valuesLeft := range left.PossibleValues {
+			tupleMatch := true
+			for _, rowIndex := range indexJoin {
+				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
+					tupleMatch = false
+					break
+				}
+			}
+			if tupleMatch {
+				trashRow[index] = true
+				break
+			}
+		}
+	}
+	for i := len(trashRow) - 1; i >= 0; i-- {
+		if !trashRow[i] {
+			right.PossibleValues = delByIndex(i, right.PossibleValues)
+		}
+	}
+}
+
+func searchJoiningIndex(left *Node, right *Node, joiningIndex *MyMap) [][]int {
+	indexJoin := make([][]int, 0)
+	joiningIndex.lock.RLock()
+	val, ok := joiningIndex.hash[IdJoiningIndex{x: left.Id, y: right.Id}]
+	joiningIndex.lock.RUnlock()
+	if ok {
+		indexJoin = val
+	} else {
+		invertedIndex := make([][]int, 0)
+		for iLeft, varLeft := range left.Variables {
+			for iRight, varRight := range right.Variables {
+				if varLeft == varRight {
+					invertedIndex = append(invertedIndex, []int{iRight, iLeft})
+					indexJoin = append(indexJoin, []int{iLeft, iRight})
+					break
+				}
+			}
+		}
+		joiningIndex.lock.Lock()
+		joiningIndex.hash[IdJoiningIndex{x: right.Id, y: left.Id}] = invertedIndex
+		joiningIndex.lock.Unlock()
+	}
+	return indexJoin
 }
 
 func OpenNodeFile(id int, folderName string) (*os.File, *bufio.Scanner) {
@@ -242,7 +240,6 @@ func OpenNodeFile(id int, folderName string) (*os.File, *bufio.Scanner) {
 }
 
 func GetValues(line string, numVariables int) []int {
-	//fmt.Println(line)
 	reg := regexp.MustCompile("(.*)")
 	valuesString := reg.FindStringSubmatch(line)[1]
 	if valuesString == "" {
@@ -252,28 +249,13 @@ func GetValues(line string, numVariables int) []int {
 		return []int{-1}
 	}
 	values := make([]int, numVariables)
-	//if line == "8 9 5 1 3 6 2 4 8 7"{
-	//	fmt.Println(numVariables)
-	//	fmt.Println(valuesString)
-	//	fmt.Println(strings.Split(valuesString, " "))
-	//}
-
-	//fmt.Println(numVariables, len(strings.Split(valuesString, " ")), line)
-
 	for i, value := range strings.Split(valuesString, " ") {
-		//if line == "8 9 5 1 3 4 6 2 8 7" {
-		//	fmt.Print(value, "index",i)
-		//}
 		v, err := strconv.Atoi(value)
 		if err != nil {
 			panic(err)
 		}
 		values[i] = v
-		//if line == "8 9 5 1 3 4 6 2 8 7" {
-		//	fmt.Println(values[i])
-		//}
 
 	}
-	//fmt.Println("\n")
 	return values
 }
