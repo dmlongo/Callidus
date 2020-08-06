@@ -35,45 +35,45 @@ func SubCSP_Computation(folderName string, domains map[string][]int, constraints
 	if err != nil {
 		panic(err)
 	}
-	wg := &sync.WaitGroup{}
-	wg.Add(len(nodes))
-	satisfiableChan := make(chan bool, len(nodes))
 	satisfiable := true
-	for _, node := range nodes {
-		if parallel {
-			go createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, wg, debugOption, satisfiableChan) //TODO: gestire possibile overhead
-		} else {
-			createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, wg, debugOption, satisfiableChan)
-			satisfiable = <-satisfiableChan
+	if parallel {
+		subCspSemaphore := &sync.WaitGroup{}
+		subCspSemaphore.Add(len(nodes))
+		checkSatisfiableSemaphore := &sync.WaitGroup{}
+		checkSatisfiableSemaphore.Add(1)
+		satisfiableChan := make(chan bool, len(nodes))
+		for _, node := range nodes {
+			go createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, subCspSemaphore,
+				debugOption, satisfiableChan, true) //TODO: gestire possibile overhead
+		}
+		go func() {
+			defer checkSatisfiableSemaphore.Done()
+			for satisfiable = range satisfiableChan {
+				if !satisfiable {
+					break
+				}
+			}
+		}()
+		subCspSemaphore.Wait()
+		close(satisfiableChan)
+		checkSatisfiableSemaphore.Wait()
+	} else {
+		for _, node := range nodes {
+			satisfiable = createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, nil,
+				debugOption, nil, false)
 			if !satisfiable {
 				break
 			}
 		}
 	}
-	wg.Wait()
-	cont := 0
-	if parallel {
-		cont = 0
-		exit := false
-		for !exit {
-			select {
-			case satisfiable = <-satisfiableChan:
-				cont++
-				if cont == len(nodes) || !satisfiable {
-					exit = true
-					break
-				}
-
-			}
-		}
-		close(satisfiableChan)
-	}
 	return satisfiable
 }
 
 func createAndSolveSubCSP(subCspFolder string, tablesFolder string, node *Node, domains map[string][]int, constraints []*Constraint,
-	wg *sync.WaitGroup, debugOption bool, satisfiableChan chan bool) {
-	defer wg.Done()
+	wg *sync.WaitGroup, debugOption bool, satisfiableChan chan bool, parallel bool) bool {
+	if parallel {
+		defer wg.Done()
+	}
 	xmlFile := subCspFolder + strconv.Itoa(node.Id) + ".xml"
 	tableFile := tablesFolder + strconv.Itoa(node.Id) + ".table"
 	file, err := os.OpenFile(xmlFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
@@ -96,9 +96,13 @@ func createAndSolveSubCSP(subCspFolder string, tablesFolder string, node *Node, 
 		panic(err)
 	}
 
-	satisfiable := solve(xmlFile, tableFile, debugOption)
-	satisfiableChan <- satisfiable
-
+	if parallel {
+		satisfiable := solve(xmlFile, tableFile, debugOption, satisfiableChan, true)
+		satisfiableChan <- satisfiable
+	} else {
+		return solve(xmlFile, tableFile, debugOption, nil, false)
+	}
+	return false
 }
 
 func writeVariables(file *os.File, variables []string, domains map[string][]int) {
@@ -210,7 +214,7 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(xmlFile string, tableFile string, debugOption bool) bool {
+func solve(xmlFile string, tableFile string, debugOption bool, satisfiableChan chan bool, parallel bool) bool {
 	defer func(debugOption bool) {
 		if !debugOption {
 			err := os.Remove(xmlFile)
@@ -219,8 +223,7 @@ func solve(xmlFile string, tableFile string, debugOption bool) bool {
 			}
 		}
 	}(debugOption)
-	//Dalla wsl usare nacreWSL, da linux nativo usare nacre
-	cmd := exec.Command("./libs/nacre", xmlFile, "-complete", "-sols", "-verb=3") //TODO: far funzionare nacre su windows
+	cmd := exec.Command("./libs/nacre", xmlFile, "-complete", "-sols", "-verb=3")
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
@@ -238,33 +241,71 @@ func solve(xmlFile string, tableFile string, debugOption bool) bool {
 	if err != nil {
 		panic(err)
 	}
-	for {
-		line, err = reader.ReadString('\n')
-		if err == io.EOF && len(line) == 0 {
-			break
-		}
-		if strings.HasPrefix(line, "v") {
-			reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-			_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
-			if err != nil {
-				panic(err)
+	if parallel {
+		exit := false
+		for !exit {
+			select {
+			case check := <-satisfiableChan:
+				if !check {
+					err = cmd.Process.Kill()
+					if err != nil {
+						panic(err)
+					}
+					exit = true
+					break
+				}
+			default:
+				line, err = reader.ReadString('\n')
+				if err == io.EOF && len(line) == 0 {
+					exit = true
+					break
+				}
+				if strings.HasPrefix(line, "v") {
+					reg := regexp.MustCompile(".*<values>(.*) </values>.*")
+					_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
+					if err != nil {
+						panic(err)
+					}
+					/*temp := make([]int, len(node.Variables))
+					for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+						v, err := strconv.Atoi(value)
+						if err != nil {
+							panic(err)
+						}
+						temp[i] = v
+					}
+					node.PossibleValues = append(node.PossibleValues, temp)*/
+					solFound = true
+				}
 			}
-			/*temp := make([]int, len(node.Variables))
-			for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
-				v, err := strconv.Atoi(value)
+		}
+
+	} else {
+		for {
+			line, err = reader.ReadString('\n')
+			if err == io.EOF && len(line) == 0 {
+				break
+			}
+			if strings.HasPrefix(line, "v") {
+				reg := regexp.MustCompile(".*<values>(.*) </values>.*")
+				_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
 				if err != nil {
 					panic(err)
 				}
-				temp[i] = v
+				/*temp := make([]int, len(node.Variables))
+				for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+					v, err := strconv.Atoi(value)
+					if err != nil {
+						panic(err)
+					}
+					temp[i] = v
+				}
+				node.PossibleValues = append(node.PossibleValues, temp)*/
+				solFound = true
 			}
-			node.PossibleValues = append(node.PossibleValues, temp)*/
-			solFound = true
 		}
 	}
-	if !solFound {
-		return false
-	}
-	return true
+	return solFound
 }
 
 /*func doNacreMakeFile(){
