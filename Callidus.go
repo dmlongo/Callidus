@@ -110,15 +110,9 @@ func main() {
 	}
 	fmt.Println("starting yannakaki")
 	startYannakaki := time.Now()
-	Yannakaki(root, yannakakiVersion, "table-"+folderName)
+	Yannakaki(root, yannakakiVersion, folderName)
 	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
 	fmt.Println("ended in ", time.Since(start))
-	if !debugOption {
-		err := os.RemoveAll("tables-" + folderName)
-		if err != nil {
-			panic(err)
-		}
-	}
 
 	//for _, node := range nodes {
 	//	fmt.Println(node)
@@ -128,6 +122,13 @@ func main() {
 		finalResult := make([]map[string]int, 0)
 		searchResults(root, &finalResult, folderName)
 		printSolution(&finalResult, outputFile)
+	}
+
+	if !debugOption {
+		err := os.RemoveAll("tables-" + folderName)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 }
@@ -189,9 +190,11 @@ func searchResults(actual *Node, finalResults *[]map[string]int, folderName stri
 	newResults := make([]map[string]int, 0)
 	addNewResults := false
 	fileActual, rActual := OpenNodeFile(actual.Id, folderName)
-
 	for rActual.Scan() {
-		singleNodeSolution := GetValues(rActual, len(actual.Variables))
+		singleNodeSolution := GetValues(rActual.Text(), len(actual.Variables))
+		if singleNodeSolution == nil {
+			break
+		}
 
 		keyJoin := ""
 		for index, value := range singleNodeSolution {

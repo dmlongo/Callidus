@@ -3,6 +3,7 @@ package computation
 import (
 	. "../../Callidus/hyperTree"
 	"bufio"
+	"io"
 	"os"
 	"regexp"
 	"strconv"
@@ -119,18 +120,50 @@ func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap, folderName string)
 		joiningIndex.hash[IdJoiningIndex{x: right.Id, y: left.Id}] = invertedIndex
 		joiningIndex.lock.Unlock()
 	}
+	//fmt.Println(left.Id, right.Id)
+	//fmt.Println("Joining index", indexJoin)
+	//fileRight, rRight := OpenNodeFile(right.Id, folderName)
+	//fileLeft, rLeft := OpenNodeFile(left.Id, folderName)
+	//for rLeft.Scan() {
+	//	valuesLeft := GetValues(rLeft, len(left.Variables))
+	//	fmt.Println(valuesLeft)
+	//}
+	//fmt.Println("\n")
+	//for rRight.Scan() {
+	//	valuesRight := GetValues(rRight, len(right.Variables))
+	//	fmt.Println(valuesRight)
+	//}
+	//
+	//fileLeft.Close()
+	//fileRight.Close()
 
 	fileRight, rRight := OpenNodeFile(right.Id, folderName)
 	fileLeft, rLeft := OpenNodeFile(left.Id, folderName)
 
-	defer fileRight.Close()
-	defer fileLeft.Close()
-
 	possibleValues := make([][]int, 0)
+
 	for rRight.Scan() {
-		valuesRight := GetValues(rRight, len(right.Variables))
+		valuesRight := GetValues(rRight.Text(), len(right.Variables))
+		//fmt.Println(valuesRight)
+		if valuesRight == nil {
+			break
+		}
+		if valuesRight[0] == -1 {
+			return
+		}
+
+		fileLeft.Seek(0, io.SeekStart)
+		rLeft = bufio.NewScanner(fileLeft)
+		i := 0
 		for rLeft.Scan() {
-			valuesLeft := GetValues(rLeft, len(left.Variables))
+			//fmt.Println(fileLeft.Name(), i)
+			valuesLeft := GetValues(rLeft.Text(), len(left.Variables))
+			if valuesLeft == nil {
+				break
+			}
+			if valuesLeft[0] == -1 {
+				return
+			}
 			tupleMatch := true
 			for _, rowIndex := range indexJoin {
 				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
@@ -139,20 +172,40 @@ func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap, folderName string)
 				}
 			}
 			if tupleMatch {
-				possibleValues = append(possibleValues, valuesLeft)
+				possibleValues = append(possibleValues, valuesRight)
 				break
 			}
+			i++
+		}
+	}
+	//fmt.Println(possibleValues)
+	//fmt.Println("\n\n")
+
+	fileRight.Close()
+	fileLeft.Close()
+
+	fileRight, err := os.OpenFile("tables-"+folderName+strconv.Itoa(right.Id)+".table", os.O_TRUNC|os.O_WRONLY, 0777)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(possibleValues) == 0 {
+		fileRight.WriteString("-1")
+	} else {
+		for _, row := range possibleValues {
+			for i, val := range row {
+				if i == len(row)-1 {
+					fileRight.WriteString(strconv.Itoa(val))
+				} else {
+					fileRight.WriteString(strconv.Itoa(val) + " ")
+				}
+
+			}
+			fileRight.WriteString("\n")
 		}
 	}
 
-	writer := bufio.NewWriter(fileLeft)
-
-	for _, row := range possibleValues {
-		for _, val := range row {
-			writer.WriteString(strconv.Itoa(val))
-		}
-		writer.WriteString("\n")
-	}
+	fileRight.Close()
 
 	//for index, valuesRight := range right.PossibleValues {
 	//	for _, valuesLeft := range left.PossibleValues {
@@ -177,7 +230,7 @@ func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap, folderName string)
 }
 
 func OpenNodeFile(id int, folderName string) (*os.File, *bufio.Scanner) {
-	fi, err := os.Open("tables-" + folderName + "/" + strconv.Itoa(id) + ".table")
+	fi, err := os.Open("tables-" + folderName + strconv.Itoa(id) + ".table")
 	if err != nil {
 		panic(err)
 	}
@@ -188,16 +241,39 @@ func OpenNodeFile(id int, folderName string) (*os.File, *bufio.Scanner) {
 	return fi, bufio.NewScanner(fi)
 }
 
-func GetValues(scanner *bufio.Scanner, numVariables int) []int {
-	reg := regexp.MustCompile("(\\d*)")
-	line := scanner.Text()
+func GetValues(line string, numVariables int) []int {
+	//fmt.Println(line)
+	reg := regexp.MustCompile("(.*)")
+	valuesString := reg.FindStringSubmatch(line)[1]
+	if valuesString == "" {
+		return nil
+	}
+	if valuesString == "-1" {
+		return []int{-1}
+	}
 	values := make([]int, numVariables)
-	for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+	//if line == "8 9 5 1 3 6 2 4 8 7"{
+	//	fmt.Println(numVariables)
+	//	fmt.Println(valuesString)
+	//	fmt.Println(strings.Split(valuesString, " "))
+	//}
+
+	//fmt.Println(numVariables, len(strings.Split(valuesString, " ")), line)
+
+	for i, value := range strings.Split(valuesString, " ") {
+		//if line == "8 9 5 1 3 4 6 2 8 7" {
+		//	fmt.Print(value, "index",i)
+		//}
 		v, err := strconv.Atoi(value)
 		if err != nil {
 			panic(err)
 		}
 		values[i] = v
+		//if line == "8 9 5 1 3 4 6 2 8 7" {
+		//	fmt.Println(values[i])
+		//}
+
 	}
+	//fmt.Println("\n")
 	return values
 }
