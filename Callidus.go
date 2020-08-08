@@ -87,7 +87,7 @@ func main() {
 	}()*/
 	startSubComputation := time.Now()
 	satisfiable := SubCSP_Computation(domains, constraints, nodes)
-	fmt.Println("sub csp computed in ", time.Since(startSubComputation))
+	fmt.Println("sub csp computed in ", time.Since(startSubComputation).Minutes())
 	if !satisfiable {
 		fmt.Println("NO SOLUTIONS")
 		return
