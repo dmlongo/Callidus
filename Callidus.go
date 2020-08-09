@@ -57,18 +57,18 @@ func main() {
 	//}()
 
 	//var domains map[string][]int
-	//go func() {
-	_ = GetDomains(filePath)
-	//	wg.Done()
-	//}()
+	go func() {
+		_ = GetDomains(filePath)
+		wg.Done()
+	}()
 
 	//var constraints []*Constraint
-	//go func() {
-	_ = GetConstraints(filePath, "output"+SystemSettings.FolderName)
-	//	wg.Done()
-	//}()
+	go func() {
+		_ = GetConstraints(filePath, "output"+SystemSettings.FolderName)
+		wg.Done()
+	}()
 
-	//wg.Wait()
+	wg.Wait()
 	fmt.Println("hypertree, domain and constraints parsed in ", time.Since(startPrep))
 	if !SystemSettings.Debug {
 		err := os.RemoveAll("output" + SystemSettings.FolderName)
