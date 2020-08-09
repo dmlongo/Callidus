@@ -26,36 +26,36 @@ func main() {
 	SystemSettings.InitSettings(args, filePath)
 
 	fmt.Println("Start Callidus")
-	start := time.Now()
+	//start := time.Now()
 
 	fmt.Println("creating hypergraph")
 	startTranslation := time.Now()
 	HypergraphTranslation(filePath)
 	fmt.Println("hypergraph created in ", time.Since(startTranslation))
 
-	hyperTreeRaw := ""
-	if SystemSettings.HypertreeFile == "output"+SystemSettings.FolderName+"hypertree" {
-		fmt.Println("decomposing hypertree")
-		startDecomposition := time.Now()
-		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+SystemSettings.FolderName, SystemSettings.InMemory)
-		fmt.Println("hypertree decomposed in ", time.Since(startDecomposition))
-	}
+	//hyperTreeRaw := ""
+	//if SystemSettings.HypertreeFile == "output"+SystemSettings.FolderName+"hypertree" {
+	//	fmt.Println("decomposing hypertree")
+	//	startDecomposition := time.Now()
+	//	hyperTreeRaw = HypertreeDecomposition(filePath, "output"+SystemSettings.FolderName, SystemSettings.InMemory)
+	//	fmt.Println("hypertree decomposed in ", time.Since(startDecomposition))
+	//}
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(2)
 
 	fmt.Println("parsing hypertree, domain and constraints")
 	startPrep := time.Now()
-	var nodes []*Node
-	var root *Node
-	go func() {
-		if SystemSettings.InMemory {
-			root, nodes = GetHyperTreeInMemory(&hyperTreeRaw)
-		} else {
-			root, nodes = GetHyperTree()
-		}
-		wg.Done()
-	}()
+	//var nodes []*Node
+	//var root *Node
+	//go func() {
+	//	if SystemSettings.InMemory {
+	//		root, nodes = GetHyperTreeInMemory(&hyperTreeRaw)
+	//	} else {
+	//		root, nodes = GetHyperTree()
+	//	}
+	//	wg.Done()
+	//}()
 
 	var domains map[string][]int
 	go func() {
@@ -85,38 +85,38 @@ func main() {
 	//		time.Sleep(5 * time.Second)
 	//	}
 	//}()
-	startSubComputation := time.Now()
-	satisfiable := SubCSP_Computation(domains, constraints, nodes)
-	fmt.Println("sub csp computed in ", time.Since(startSubComputation).Minutes())
-	if !satisfiable {
-		fmt.Println("NO SOLUTIONS")
-		return
-	}
-	if !SystemSettings.Debug {
-
-		err := os.RemoveAll("subCSP-" + SystemSettings.FolderName)
-		if err != nil {
-			panic(err)
-		}
-	}
-	fmt.Println("starting yannakaki")
-	startYannakaki := time.Now()
-	Yannakaki(root)
-	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
-	fmt.Println("ended in ", time.Since(start))
-
-	if SystemSettings.PrintSol {
-		finalResult := make([]map[string]int, 0)
-		searchResults(root, &finalResult)
-		printSolution(&finalResult)
-	}
-
-	if !SystemSettings.Debug {
-		err := os.RemoveAll("tables-" + SystemSettings.FolderName)
-		if err != nil {
-			panic(err)
-		}
-	}
+	//startSubComputation := time.Now()
+	//satisfiable := SubCSP_Computation(domains, constraints, nodes)
+	//fmt.Println("sub csp computed in ", time.Since(startSubComputation).Minutes())
+	//if !satisfiable {
+	//	fmt.Println("NO SOLUTIONS")
+	//	return
+	//}
+	//if !SystemSettings.Debug {
+	//
+	//	err := os.RemoveAll("subCSP-" + SystemSettings.FolderName)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//}
+	//fmt.Println("starting yannakaki")
+	//startYannakaki := time.Now()
+	//Yannakaki(root)
+	//fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
+	//fmt.Println("ended in ", time.Since(start))
+	//
+	//if SystemSettings.PrintSol {
+	//	finalResult := make([]map[string]int, 0)
+	//	searchResults(root, &finalResult)
+	//	printSolution(&finalResult)
+	//}
+	//
+	//if !SystemSettings.Debug {
+	//	err := os.RemoveAll("tables-" + SystemSettings.FolderName)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//}
 }
 
 func printSolution(result *[]map[string]int) {
