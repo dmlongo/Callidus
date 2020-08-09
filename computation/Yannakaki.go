@@ -138,8 +138,6 @@ func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int) {
 			return
 		}
 
-		//fileLeft.Seek(0, io.SeekStart)
-		//rLeft = bufio.NewScanner(fileLeft)
 		for _, valuesLeft := range possibleValuesLeft {
 			tupleMatch := true
 			for _, rowIndex := range indexJoin {
@@ -156,7 +154,6 @@ func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int) {
 	}
 
 	fileRight.Close()
-	//fileLeft.Close()
 
 	fileRight, err := os.OpenFile("tables-"+SystemSettings.FolderName+strconv.Itoa(right.Id)+".table", os.O_TRUNC|os.O_WRONLY, 0777)
 	if err != nil {

@@ -79,12 +79,12 @@ func main() {
 	}
 
 	fmt.Println("starting sub csp computation")
-	/*go func() {
-		for {
-			PrintMemUsage()
-			time.Sleep(5 * time.Second)
-		}
-	}()*/
+	//go func() {
+	//	for {
+	//		PrintMemUsage()
+	//		time.Sleep(5 * time.Second)
+	//	}
+	//}()
 	startSubComputation := time.Now()
 	satisfiable := SubCSP_Computation(domains, constraints, nodes)
 	fmt.Println("sub csp computed in ", time.Since(startSubComputation).Minutes())
@@ -117,7 +117,6 @@ func main() {
 			panic(err)
 		}
 	}
-
 }
 
 func printSolution(result *[]map[string]int) {
@@ -181,6 +180,10 @@ func searchResults(actual *Node, finalResults *[]map[string]int) {
 		addNewResults, newResults = searchNewResultsInMemory(actual, &joinVariables, finalResults)
 	} else {
 		addNewResults, newResults = searchNewResultsOnFile(actual, &joinVariables, finalResults)
+		if newResults == nil {
+			*finalResults = nil
+			return
+		}
 	}
 
 	if addNewResults {
@@ -215,6 +218,12 @@ func searchNewResultsOnFile(actual *Node, joinVariables *map[string]int, finalRe
 	fileActual, rActual := OpenNodeFile(actual.Id)
 	for rActual.Scan() {
 		singleNodeSolution := GetValues(rActual.Text(), len(actual.Variables))
+		if singleNodeSolution == nil {
+			break
+		}
+		if singleNodeSolution[0] == -1 {
+			return false, nil
+		}
 		computationNewResults(actual, singleNodeSolution, joinVariables, &joinDoneCount, finalResults, &addNewResults, &newResults)
 	}
 
