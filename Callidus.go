@@ -2,6 +2,7 @@ package main
 
 import (
 	. "../Callidus/computation"
+	. "../Callidus/constraint"
 	. "../Callidus/hyperTree"
 	. "../Callidus/pre-processing"
 	"fmt"
@@ -32,39 +33,39 @@ func main() {
 	HypergraphTranslation(filePath)
 	fmt.Println("hypergraph created in ", time.Since(startTranslation))
 
-	//hyperTreeRaw := ""
-	//if SystemSettings.HypertreeFile == "output"+SystemSettings.FolderName+"hypertree" {
-	//	fmt.Println("decomposing hypertree")
-	//	startDecomposition := time.Now()
-	//	hyperTreeRaw = HypertreeDecomposition(filePath, "output"+SystemSettings.FolderName, SystemSettings.InMemory)
-	//	fmt.Println("hypertree decomposed in ", time.Since(startDecomposition))
-	//}
+	hyperTreeRaw := ""
+	if SystemSettings.HypertreeFile == "output"+SystemSettings.FolderName+"hypertree" {
+		fmt.Println("decomposing hypertree")
+		startDecomposition := time.Now()
+		hyperTreeRaw = HypertreeDecomposition(filePath, "output"+SystemSettings.FolderName, SystemSettings.InMemory)
+		fmt.Println("hypertree decomposed in ", time.Since(startDecomposition))
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	fmt.Println("parsing hypertree, domain and constraints")
 	startPrep := time.Now()
-	//var nodes []*Node
-	//var root *Node
-	//go func() {
-	//	if SystemSettings.InMemory {
-	//		root, nodes = GetHyperTreeInMemory(&hyperTreeRaw)
-	//	} else {
-	//		root, nodes = GetHyperTree()
-	//	}
-	//	wg.Done()
-	//}()
-
-	//var domains map[string][]int
+	var nodes []*Node
+	var root *Node
 	go func() {
-		_ = GetDomains(filePath)
+		if SystemSettings.InMemory {
+			root, nodes = GetHyperTreeInMemory(&hyperTreeRaw)
+		} else {
+			root, nodes = GetHyperTree()
+		}
 		wg.Done()
 	}()
 
-	//var constraints []*Constraint
+	var domains map[string][]int
 	go func() {
-		_ = GetConstraints(filePath, "output"+SystemSettings.FolderName)
+		domains = GetDomains(filePath)
+		wg.Done()
+	}()
+
+	var constraints []*Constraint
+	go func() {
+		constraints = GetConstraints(filePath, "output"+SystemSettings.FolderName)
 		wg.Done()
 	}()
 
@@ -76,6 +77,7 @@ func main() {
 			panic(err)
 		}
 	}
+	return
 
 	fmt.Println("starting sub csp computation")
 	//go func() {
