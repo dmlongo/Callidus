@@ -13,7 +13,11 @@ import (
 	"time"
 )
 
+var contSols int
+
 func main() {
+	contSols = 0
+
 	if len(os.Args) == 1 {
 		panic("The first parameter must be an xml file or lzma file")
 	}
@@ -105,9 +109,11 @@ func main() {
 	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
 	fmt.Println("ended in ", time.Since(start))
 
+	finalResult := make([]map[string]int, 0)
+
+	searchResults(root, &finalResult)
+	fmt.Println("Number solutions:", contSols)
 	if SystemSettings.PrintSol {
-		finalResult := make([]map[string]int, 0)
-		searchResults(root, &finalResult)
 		printSolution(&finalResult)
 	}
 
@@ -276,7 +282,9 @@ func computationNewResults(actual *Node, singleNodeSolution []int, joinVariables
 					for index, value := range singleNodeSolution {
 						copyRes[actual.Variables[index]] = value
 					}
-					*newResults = append(*newResults, copyRes)
+					//*newResults = append(*newResults, copyRes)
+					//fmt.Println(copyRes)
+					contSols++
 				}
 
 			}
@@ -286,6 +294,8 @@ func computationNewResults(actual *Node, singleNodeSolution []int, joinVariables
 		for index, value := range singleNodeSolution {
 			resTemp[actual.Variables[index]] = value
 		}
-		*finalResults = append(*finalResults, resTemp)
+		//*finalResults = append(*finalResults, resTemp)
+		//fmt.Println(resTemp)
+		contSols++
 	}
 }
