@@ -111,8 +111,10 @@ func main() {
 
 	finalResult := make([]map[string]int, 0)
 
+	startSearchResult := time.Now()
 	searchResults(root, &finalResult)
-	fmt.Println("Number solutions:", contSols)
+	fmt.Println("search results ended in ", time.Since(startSearchResult))
+
 	if SystemSettings.PrintSol {
 		printSolution(&finalResult)
 	}
@@ -198,6 +200,8 @@ func searchResults(actual *Node, finalResults *[]map[string]int) {
 		}
 	}
 
+	//fmt.Println(len(*finalResults))
+
 	for _, son := range actual.Sons {
 		searchResults(son, finalResults)
 	}
@@ -282,9 +286,7 @@ func computationNewResults(actual *Node, singleNodeSolution []int, joinVariables
 					for index, value := range singleNodeSolution {
 						copyRes[actual.Variables[index]] = value
 					}
-					//*newResults = append(*newResults, copyRes)
-					//fmt.Println(copyRes)
-					contSols++
+					*newResults = append(*newResults, copyRes)
 				}
 
 			}
@@ -294,8 +296,6 @@ func computationNewResults(actual *Node, singleNodeSolution []int, joinVariables
 		for index, value := range singleNodeSolution {
 			resTemp[actual.Variables[index]] = value
 		}
-		//*finalResults = append(*finalResults, resTemp)
-		//fmt.Println(resTemp)
-		contSols++
+		*finalResults = append(*finalResults, resTemp)
 	}
 }
