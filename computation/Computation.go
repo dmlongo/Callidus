@@ -89,16 +89,21 @@ func createAndSolveSubCSP(subCspFolder string, tablesFolder string, node *Node, 
 	if err != nil {
 		panic(err)
 	}
+	fileStats, err := file.Stat()
+	if err != nil {
+		panic(err)
+	}
+	fileSizeKB := fileStats.Size() / 1024
 	err = file.Close()
 	if err != nil {
 		panic(err)
 	}
 
 	if SystemSettings.ParallelSC {
-		satisfiable := solve(xmlFile, tableFile, satisfiableChan, node)
+		satisfiable := solve(xmlFile, tableFile, satisfiableChan, node, fileSizeKB)
 		satisfiableChan <- satisfiable
 	} else {
-		return solve(xmlFile, tableFile, nil, node)
+		return solve(xmlFile, tableFile, nil, node, fileSizeKB)
 	}
 	return false
 }
@@ -212,7 +217,7 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *Node) bool {
+func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *Node, fileSizeKB int64) bool {
 	defer func(debugOption bool) {
 		if !debugOption {
 			err := os.Remove(xmlFile)
@@ -221,45 +226,159 @@ func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *No
 			}
 		}
 	}(SystemSettings.Debug)
-	cmd := exec.Command("./libs/nacre", xmlFile, "-complete", "-sols", "-verb=3")
-	out, err := cmd.StdoutPipe()
-	if err != nil {
-		panic(err)
-	}
-	reader := bufio.NewReader(out)
-	var line string
-	err = cmd.Start()
-	if err != nil {
-		panic(err)
-	}
+	fmt.Println(fileSizeKB)
+	if fileSizeKB > 1000 {
+		cmd := exec.Command("./Callidus", xmlFile, "-i")
+		out, err := cmd.StdoutPipe()
+		if err != nil {
+			panic(err)
+		}
+		reader := bufio.NewReader(out)
+		var line string
+		err = cmd.Start()
+		if err != nil {
+			panic(err)
+		}
 
-	solFound := false
-	var outputTable *os.File = nil
-	if SystemSettings.InMemory {
-		node.PossibleValues = make([][]int, 0)
-	} else {
-		outputTable, err = os.OpenFile(tableFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
-	}
-	if err != nil {
-		panic(err)
-	}
-	if SystemSettings.ParallelSC {
-		exit := false
-		for !exit {
-			select {
-			case check := <-satisfiableChan:
-				if !check {
-					err = cmd.Process.Kill()
-					if err != nil {
-						panic(err)
+		solFound := true
+		var outputTable *os.File = nil
+		if SystemSettings.InMemory {
+			node.PossibleValues = make([][]int, 0)
+		} else {
+			outputTable, err = os.OpenFile(tableFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+		}
+		if err != nil {
+			panic(err)
+		}
+
+		if SystemSettings.ParallelSC {
+			exit := false
+			for !exit {
+				select {
+				case check := <-satisfiableChan:
+					if !check {
+						err = cmd.Process.Kill()
+						if err != nil {
+							panic(err)
+						}
+						exit = true
+						break
 					}
-					exit = true
-					break
+				default:
+					line, err = reader.ReadString('\n')
+					if err == io.EOF && len(line) == 0 {
+						exit = true
+						break
+					}
+					if strings.HasPrefix(line, "N") {
+						solFound = false
+					} else if strings.HasPrefix(line, "Sol") {
+						for i := 0; i < len(node.Variables); i++ {
+							line, err = reader.ReadString('\n')
+							outputTable.WriteString(strings.Split(line, " ")[len(line)-1])
+							fmt.Println(strings.Split(line, " ")[len(line)-1])
+						}
+						outputTable.WriteString("\n")
+						fmt.Println(" ")
+					}
 				}
-			default:
+			}
+
+		} else {
+			for {
 				line, err = reader.ReadString('\n')
 				if err == io.EOF && len(line) == 0 {
-					exit = true
+					break
+				}
+				if strings.HasPrefix(line, "N") {
+					solFound = false
+				} else if strings.HasPrefix(line, "Sol") {
+					temp := make([]int, len(node.Variables))
+					for i := 0; i < len(node.Variables); i++ {
+						line, err = reader.ReadString('\n')
+						if err != nil {
+							panic(err)
+						}
+						val, err := strconv.Atoi(strings.Split(line, " ")[len(line)-1])
+						if err != nil {
+							panic(err)
+						}
+						temp[i] = val
+					}
+					node.PossibleValues = append(node.PossibleValues, temp)
+				}
+			}
+		}
+		return solFound
+	} else {
+		cmd := exec.Command("./libs/nacreWSL", xmlFile, "-complete", "-sols", "-verb=3")
+		out, err := cmd.StdoutPipe()
+		if err != nil {
+			panic(err)
+		}
+		reader := bufio.NewReader(out)
+		var line string
+		err = cmd.Start()
+		if err != nil {
+			panic(err)
+		}
+
+		solFound := false
+		var outputTable *os.File = nil
+		if SystemSettings.InMemory {
+			node.PossibleValues = make([][]int, 0)
+		} else {
+			outputTable, err = os.OpenFile(tableFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+		}
+		if err != nil {
+			panic(err)
+		}
+		if SystemSettings.ParallelSC {
+			exit := false
+			for !exit {
+				select {
+				case check := <-satisfiableChan:
+					if !check {
+						err = cmd.Process.Kill()
+						if err != nil {
+							panic(err)
+						}
+						exit = true
+						break
+					}
+				default:
+					line, err = reader.ReadString('\n')
+					if err == io.EOF && len(line) == 0 {
+						exit = true
+						break
+					}
+					if strings.HasPrefix(line, "v") {
+						reg := regexp.MustCompile(".*<values>(.*) </values>.*")
+						if SystemSettings.InMemory {
+							temp := make([]int, len(node.Variables))
+							for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+								v, err := strconv.Atoi(value)
+								if err != nil {
+									panic(err)
+								}
+								temp[i] = v
+							}
+							node.PossibleValues = append(node.PossibleValues, temp)
+						} else {
+							_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
+							if err != nil {
+								panic(err)
+							}
+						}
+						solFound = true
+					}
+				}
+			}
+
+		} else {
+			for {
+				line, err = reader.ReadString('\n')
+				if err == io.EOF && len(line) == 0 {
 					break
 				}
 				if strings.HasPrefix(line, "v") {
@@ -284,36 +403,9 @@ func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *No
 				}
 			}
 		}
-
-	} else {
-		for {
-			line, err = reader.ReadString('\n')
-			if err == io.EOF && len(line) == 0 {
-				break
-			}
-			if strings.HasPrefix(line, "v") {
-				reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-				if SystemSettings.InMemory {
-					temp := make([]int, len(node.Variables))
-					for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
-						v, err := strconv.Atoi(value)
-						if err != nil {
-							panic(err)
-						}
-						temp[i] = v
-					}
-					node.PossibleValues = append(node.PossibleValues, temp)
-				} else {
-					_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
-					if err != nil {
-						panic(err)
-					}
-				}
-				solFound = true
-			}
-		}
+		return solFound
 	}
-	return solFound
+
 }
 
 /*func doNacreMakeFile(){
