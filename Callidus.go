@@ -13,7 +13,11 @@ import (
 	"time"
 )
 
+var contSols int
+
 func main() {
+	contSols = 0
+
 	if len(os.Args) == 1 {
 		panic("The first parameter must be an xml file or lzma file")
 	}
@@ -26,7 +30,7 @@ func main() {
 	SystemSettings.InitSettings(args, filePath)
 
 	fmt.Println("Start Callidus")
-	//start := time.Now()
+	start := time.Now()
 
 	fmt.Println("creating hypergraph")
 	startTranslation := time.Now()
@@ -42,7 +46,7 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 
 	fmt.Println("parsing hypertree, domain and constraints")
 	startPrep := time.Now()
@@ -77,7 +81,6 @@ func main() {
 			panic(err)
 		}
 	}
-	return
 
 	fmt.Println("starting sub csp computation")
 	//go func() {
@@ -86,38 +89,42 @@ func main() {
 	//		time.Sleep(5 * time.Second)
 	//	}
 	//}()
-	//startSubComputation := time.Now()
-	//satisfiable := SubCSP_Computation(domains, constraints, nodes)
-	//fmt.Println("sub csp computed in ", time.Since(startSubComputation).Minutes())
-	//if !satisfiable {
-	//	fmt.Println("NO SOLUTIONS")
-	//	return
-	//}
-	//if !SystemSettings.Debug {
-	//
-	//	err := os.RemoveAll("subCSP-" + SystemSettings.FolderName)
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//}
-	//fmt.Println("starting yannakaki")
-	//startYannakaki := time.Now()
-	//Yannakaki(root)
-	//fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
-	//fmt.Println("ended in ", time.Since(start))
-	//
-	//if SystemSettings.PrintSol {
-	//	finalResult := make([]map[string]int, 0)
-	//	searchResults(root, &finalResult)
-	//	printSolution(&finalResult)
-	//}
-	//
-	//if !SystemSettings.Debug {
-	//	err := os.RemoveAll("tables-" + SystemSettings.FolderName)
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//}
+	startSubComputation := time.Now()
+	satisfiable := SubCSP_Computation(domains, constraints, nodes)
+	fmt.Println("sub csp computed in ", time.Since(startSubComputation).Seconds())
+	if !satisfiable {
+		fmt.Println("NO SOLUTIONS")
+		return
+	}
+	if !SystemSettings.Debug {
+
+		err := os.RemoveAll("subCSP-" + SystemSettings.FolderName)
+		if err != nil {
+			panic(err)
+		}
+	}
+	fmt.Println("starting yannakaki")
+	startYannakaki := time.Now()
+	Yannakaki(root)
+	fmt.Println("yannakaki finished in ", time.Since(startYannakaki))
+	fmt.Println("ended in ", time.Since(start))
+
+	finalResult := make([]map[string]int, 0)
+
+	startSearchResult := time.Now()
+	searchResults(root, &finalResult)
+	fmt.Println("search results ended in ", time.Since(startSearchResult))
+
+	if SystemSettings.PrintSol {
+		printSolution(&finalResult)
+	}
+
+	if !SystemSettings.Debug {
+		err := os.RemoveAll("tables-" + SystemSettings.FolderName)
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 func printSolution(result *[]map[string]int) {
@@ -192,6 +199,8 @@ func searchResults(actual *Node, finalResults *[]map[string]int) {
 			*finalResults = append(*finalResults, singleNewResult)
 		}
 	}
+
+	//fmt.Println(len(*finalResults))
 
 	for _, son := range actual.Sons {
 		searchResults(son, finalResults)
