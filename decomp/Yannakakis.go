@@ -1,8 +1,6 @@
-package computation
+package decomp
 
 import (
-	. "../../Callidus/hyperTree"
-	. "../../Callidus/pre-processing"
 	"bufio"
 	"os"
 	"regexp"
@@ -30,66 +28,66 @@ func delByIndex(index int, slice [][]int) [][]int {
 	return slice
 }
 
-func Yannakaki(root *Node) *Node {
+func Yannakakis(root *Node, parallel bool, inMemory bool, folder string) *Node {
 	joiningIndex := &MyMap{}
 	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
 	joiningIndex.lock = &sync.RWMutex{}
-	if len(root.Sons) != 0 {
-		if SystemSettings.ParallelYannakaki {
-			parallelBottomUp(root, joiningIndex)
-			parallelTopDown(root, joiningIndex)
+	if len(root.Children) != 0 {
+		if parallel {
+			parallelBottomUp(root, joiningIndex, inMemory, folder)
+			parallelTopDown(root, joiningIndex, inMemory, folder)
 		} else {
-			sequentialBottomUp(root, joiningIndex)
-			sequentialTopDown(root, joiningIndex)
+			sequentialBottomUp(root, joiningIndex, inMemory, folder)
+			sequentialTopDown(root, joiningIndex, inMemory, folder)
 		}
 	}
 	return root
 }
 
-func sequentialBottomUp(actual *Node, joiningIndex *MyMap) {
-	for _, son := range actual.Sons {
-		sequentialBottomUp(son, joiningIndex)
+func sequentialBottomUp(actual *Node, joiningIndex *MyMap, inMemory bool, folder string) {
+	for _, son := range actual.Children {
+		sequentialBottomUp(son, joiningIndex, inMemory, folder)
 	}
 	if actual.Father != nil {
-		doSemiJoin(actual, actual.Father, joiningIndex)
+		doSemiJoin(actual, actual.Father, joiningIndex, inMemory, folder)
 	}
 }
 
-func sequentialTopDown(actual *Node, joiningIndex *MyMap) {
-	for _, son := range actual.Sons {
-		doSemiJoin(actual, son, joiningIndex)
-		sequentialTopDown(son, joiningIndex)
+func sequentialTopDown(actual *Node, joiningIndex *MyMap, inMemory bool, folder string) {
+	for _, son := range actual.Children {
+		doSemiJoin(actual, son, joiningIndex, inMemory, folder)
+		sequentialTopDown(son, joiningIndex, inMemory, folder)
 	}
 }
 
-func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
+func parallelBottomUp(actual *Node, joiningIndex *MyMap, inMemory bool, folder string) {
 	var wg *sync.WaitGroup = &sync.WaitGroup{}
-	for _, son := range actual.Sons {
-		if len(son.Sons) != 0 && len(actual.Sons) > 1 {
+	for _, son := range actual.Children {
+		if len(son.Children) != 0 && len(actual.Children) > 1 {
 			wg.Add(1)
 			go func(s *Node) {
-				parallelBottomUp(s, joiningIndex)
+				parallelBottomUp(s, joiningIndex, inMemory, folder)
 				wg.Done()
 			}(son)
 		} else {
-			parallelBottomUp(son, joiningIndex)
+			parallelBottomUp(son, joiningIndex, inMemory, folder)
 		}
 	}
 	wg.Wait()
 	if actual.Father != nil {
 		actual.Father.Lock.Lock()
-		doSemiJoin(actual, actual.Father, joiningIndex)
+		doSemiJoin(actual, actual.Father, joiningIndex, inMemory, folder)
 		actual.Father.Lock.Unlock()
 	}
 }
 
-func parallelTopDown(actual *Node, joiningIndex *MyMap) {
+func parallelTopDown(actual *Node, joiningIndex *MyMap, inMemory bool, folder string) {
 	var wg *sync.WaitGroup = &sync.WaitGroup{}
-	wg.Add(len(actual.Sons))
-	for _, son := range actual.Sons {
-		doSemiJoin(actual, son, joiningIndex)
+	wg.Add(len(actual.Children))
+	for _, son := range actual.Children {
+		doSemiJoin(actual, son, joiningIndex, inMemory, folder)
 		go func(s *Node) {
-			parallelTopDown(s, joiningIndex)
+			parallelTopDown(s, joiningIndex, inMemory, folder)
 			wg.Done()
 		}(son)
 
@@ -99,24 +97,24 @@ func parallelTopDown(actual *Node, joiningIndex *MyMap) {
 
 // the left node performs the semi join on the right node and update the right's table
 //TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
-func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap) {
+func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap, inMemory bool, folder string) {
 	indexJoin := searchJoiningIndex(left, right, joiningIndex)
 
-	if SystemSettings.InMemory {
+	if inMemory {
 		semiJoinInMemory(left, right, indexJoin)
 	} else {
-		semiJoinOnFile(left, right, indexJoin)
+		semiJoinOnFile(left, right, indexJoin, folder)
 	}
 
 }
 
-func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int) {
+func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int, folder string) {
 
-	fileRight, rRight := OpenNodeFile(right.Id)
-	fileLeft, rLeft := OpenNodeFile(left.Id)
+	fileRight, rRight := OpenNodeFile(right.ID, folder)
+	fileLeft, rLeft := OpenNodeFile(left.ID, folder)
 	possibleValuesLeft := make([][]int, 0)
 	for rLeft.Scan() {
-		valuesLeft := GetValues(rLeft.Text(), len(left.Variables))
+		valuesLeft := GetValues(rLeft.Text(), len(left.Bag))
 		if valuesLeft == nil {
 			break
 		}
@@ -130,7 +128,7 @@ func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int) {
 	possibleValues := make([][]int, 0)
 
 	for rRight.Scan() {
-		valuesRight := GetValues(rRight.Text(), len(right.Variables))
+		valuesRight := GetValues(rRight.Text(), len(right.Bag))
 		if valuesRight == nil {
 			break
 		}
@@ -155,7 +153,7 @@ func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int) {
 
 	fileRight.Close()
 
-	fileRight, err := os.OpenFile("tables-"+SystemSettings.FolderName+strconv.Itoa(right.Id)+".table", os.O_TRUNC|os.O_WRONLY, 0777)
+	fileRight, err := os.OpenFile("tables-"+folder+strconv.Itoa(right.ID)+".table", os.O_TRUNC|os.O_WRONLY, 0777)
 	if err != nil {
 		panic(err)
 	}
@@ -206,14 +204,14 @@ func semiJoinInMemory(left *Node, right *Node, indexJoin [][]int) {
 func searchJoiningIndex(left *Node, right *Node, joiningIndex *MyMap) [][]int {
 	indexJoin := make([][]int, 0)
 	joiningIndex.lock.RLock()
-	val, ok := joiningIndex.hash[IdJoiningIndex{x: left.Id, y: right.Id}]
+	val, ok := joiningIndex.hash[IdJoiningIndex{x: left.ID, y: right.ID}]
 	joiningIndex.lock.RUnlock()
 	if ok {
 		indexJoin = val
 	} else {
 		invertedIndex := make([][]int, 0)
-		for iLeft, varLeft := range left.Variables {
-			for iRight, varRight := range right.Variables {
+		for iLeft, varLeft := range left.Bag {
+			for iRight, varRight := range right.Bag {
 				if varLeft == varRight {
 					invertedIndex = append(invertedIndex, []int{iRight, iLeft})
 					indexJoin = append(indexJoin, []int{iLeft, iRight})
@@ -222,14 +220,14 @@ func searchJoiningIndex(left *Node, right *Node, joiningIndex *MyMap) [][]int {
 			}
 		}
 		joiningIndex.lock.Lock()
-		joiningIndex.hash[IdJoiningIndex{x: right.Id, y: left.Id}] = invertedIndex
+		joiningIndex.hash[IdJoiningIndex{x: right.ID, y: left.ID}] = invertedIndex
 		joiningIndex.lock.Unlock()
 	}
 	return indexJoin
 }
 
-func OpenNodeFile(id int) (*os.File, *bufio.Scanner) {
-	fi, err := os.Open("tables-" + SystemSettings.FolderName + strconv.Itoa(id) + ".table")
+func OpenNodeFile(id int, folder string) (*os.File, *bufio.Scanner) {
+	fi, err := os.Open("tables-" + folder + strconv.Itoa(id) + ".table")
 	if err != nil {
 		panic(err)
 	}

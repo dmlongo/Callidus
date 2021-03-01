@@ -1,9 +1,6 @@
-package computation
+package decomp
 
 import (
-	. "../../Callidus/constraint"
-	. "../../Callidus/hyperTree"
-	. "../../Callidus/pre-processing"
 	"bufio"
 	"fmt"
 	"io"
@@ -16,9 +13,9 @@ import (
 	"sync"
 )
 
-func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nodes []*Node) bool {
-	subCspFolder := "subCSP-" + SystemSettings.FolderName
-	tablesFolder := "tables-" + SystemSettings.FolderName
+func SubCSPComputation(domains map[string][]int, constraints []*Constraint, nodes []*Node, folder string, subDebug bool, inMemory bool, parallel bool) bool {
+	subCspFolder := "subCSP-" + folder
+	tablesFolder := "tables-" + folder
 	err := os.RemoveAll(subCspFolder)
 	if err != nil {
 		panic(err)
@@ -36,14 +33,15 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 		panic(err)
 	}
 	satisfiable := true
-	if SystemSettings.ParallelSC {
+	if parallel {
 		subCspSemaphore := &sync.WaitGroup{}
 		subCspSemaphore.Add(len(nodes))
 		checkSatisfiableSemaphore := &sync.WaitGroup{}
 		checkSatisfiableSemaphore.Add(1)
 		satisfiableChan := make(chan bool, len(nodes))
 		for _, node := range nodes {
-			go createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, subCspSemaphore, satisfiableChan)
+			go CreateAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, subCspSemaphore, satisfiableChan, subDebug, inMemory, parallel)
+			// CreateAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, subCspSemaphore, satisfiableChan, subDebug, inMemory, parallel)
 		}
 		go func() {
 			defer checkSatisfiableSemaphore.Done()
@@ -58,7 +56,7 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 		checkSatisfiableSemaphore.Wait()
 	} else {
 		for _, node := range nodes {
-			satisfiable = createAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, nil, nil)
+			satisfiable = CreateAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, nil, nil, subDebug, inMemory, parallel)
 			if !satisfiable {
 				break
 			}
@@ -67,132 +65,12 @@ func SubCSP_Computation(domains map[string][]int, constraints []*Constraint, nod
 	return satisfiable
 }
 
-func createAndSolveSubCSP(subCspFolder string, tablesFolder string, node *Node, domains map[string][]int, constraints []*Constraint,
-	wg *sync.WaitGroup, satisfiableChan chan bool) bool {
-	if SystemSettings.ParallelSC {
-		defer wg.Done()
-	}
-	xmlFile := subCspFolder + strconv.Itoa(node.Id) + ".xml"
-	tableFile := tablesFolder + strconv.Itoa(node.Id) + ".table"
-	file, err := os.OpenFile(xmlFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = file.WriteString("<instance format=\"XCSP3\" type=\"CSP\">\n")
-	if err != nil {
-		panic(err)
-	}
-	writeVariables(file, node.Variables, domains)
-	writeConstraints(file, node.Variables, constraints)
-	_, err = file.WriteString("</instance>\n")
-	if err != nil {
-		panic(err)
-	}
-	err = file.Close()
-	if err != nil {
-		panic(err)
-	}
-
-	if SystemSettings.ParallelSC {
-		satisfiable := solve(xmlFile, tableFile, satisfiableChan, node)
-		satisfiableChan <- satisfiable
-	} else {
-		return solve(xmlFile, tableFile, nil, node)
-	}
-	return false
-}
-
-func writeVariables(file *os.File, variables []string, domains map[string][]int) {
-	_, err := file.WriteString("<variables>\n")
-	if err != nil {
-		panic(err)
-	}
-	for _, variable := range variables {
-		dom := domains[variable]
-		values := "<var id=\"" + variable + "\"> "
-		for _, i := range dom {
-			values += strconv.Itoa(i) + " "
-		}
-		values += "</var>\n"
-		_, err = file.WriteString(values)
-		if err != nil {
-			panic(err)
-		}
-	}
-	_, err = file.WriteString("</variables>\n")
-
-	if err != nil {
-		panic(err)
-	}
-}
-
-func writeConstraints(file *os.File, variables []string, constraints []*Constraint) {
-	_, err := file.WriteString("<constraints>\n")
-	if err != nil {
-		panic(err)
-	}
-	for _, constraint := range constraints {
-		if isConstraintOk(constraint.Variables, variables) {
-			_, err = file.WriteString("<extension>\n")
-			if err != nil {
-				panic(err)
-			}
-			_, err = file.WriteString(getListVariable(constraint.Variables))
-			if err != nil {
-				panic(err)
-			}
-			_, err = file.WriteString(getPossibleValues(constraint))
-			if err != nil {
-				panic(err)
-			}
-			_, err = file.WriteString("</extension>\n")
-			if err != nil {
-				panic(err)
-			}
-		}
-	}
-	_, err = file.WriteString("</constraints>\n")
-	if err != nil {
-		panic(err)
-	}
-}
-
-//check if the constraint is associated with a node variables
-//TODO: we could use a map to speed up the check
-func isConstraintOk(constraintVariables []string, variables []string) bool {
-	ok := true
-	for _, constraintVariable := range constraintVariables {
-		isConstraintVariableOk := false
-		for _, nodeVariable := range variables {
-			if constraintVariable == nodeVariable {
-				isConstraintVariableOk = true
-				break
-			}
-		}
-		if !isConstraintVariableOk {
-			ok = false
-			break
-		}
-	}
-	return ok
-}
-
-func getListVariable(variables []string) string {
-	listVariable := "<list> "
-	for _, v := range variables {
-		listVariable += v + " "
-	}
-	listVariable += "</list>\n"
-	return listVariable
-}
-
 func getPossibleValues(constraint *Constraint) string {
 	possibleValues := "<supports> "
 	if !constraint.CType {
 		possibleValues = "<conflicts> "
 	}
-	for _, tup := range constraint.PossibleValues {
+	for _, tup := range constraint.Relation {
 		possibleValues += "("
 		for i := range tup {
 			value := strconv.Itoa(tup[i])
@@ -212,7 +90,7 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *Node) bool {
+func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *Node, subDebug bool, inMemory bool, parallel bool) bool {
 	defer func(debugOption bool) {
 		if !debugOption {
 			err := os.Remove(xmlFile)
@@ -220,7 +98,7 @@ func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *No
 				panic(err)
 			}
 		}
-	}(SystemSettings.Debug)
+	}(subDebug)
 	cmd := exec.Command("./libs/nacre", xmlFile, "-complete", "-sols", "-verb=3")
 	out, err := cmd.StdoutPipe()
 	if err != nil {
@@ -235,7 +113,7 @@ func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *No
 
 	solFound := false
 	var outputTable *os.File = nil
-	if SystemSettings.InMemory {
+	if inMemory {
 		node.PossibleValues = make([][]int, 0)
 	} else {
 		outputTable, err = os.OpenFile(tableFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
@@ -243,7 +121,7 @@ func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *No
 	if err != nil {
 		panic(err)
 	}
-	if SystemSettings.ParallelSC {
+	if parallel {
 		exit := false
 		for !exit {
 			select {
@@ -264,8 +142,8 @@ func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *No
 				}
 				if strings.HasPrefix(line, "v") {
 					reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-					if SystemSettings.InMemory {
-						temp := make([]int, len(node.Variables))
+					if inMemory {
+						temp := make([]int, len(node.Bag))
 						for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
 							v, err := strconv.Atoi(value)
 							if err != nil {
@@ -293,8 +171,8 @@ func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *No
 			}
 			if strings.HasPrefix(line, "v") {
 				reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-				if SystemSettings.InMemory {
-					temp := make([]int, len(node.Variables))
+				if inMemory {
+					temp := make([]int, len(node.Bag))
 					for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
 						v, err := strconv.Atoi(value)
 						if err != nil {

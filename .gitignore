@@ -18,5 +18,7 @@ subCSP*
 tables*
 output*
 .idea
+.vscode
 # vendor/
 /XCSP_Instances/
+examples/
