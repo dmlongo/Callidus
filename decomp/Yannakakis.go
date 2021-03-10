@@ -1,38 +1,27 @@
 package decomp
 
 import (
-	"bufio"
-	"os"
-	"regexp"
-	"strconv"
-	"strings"
 	"sync"
 )
 
-type IdJoiningIndex struct {
+// IDJoiningIndex is.. I still don't know
+type IDJoiningIndex struct {
 	x int
 	y int
 }
 
+// MyMap is a map with a lock
 type MyMap struct {
-	hash map[IdJoiningIndex][][]int
+	hash map[IDJoiningIndex][][]int
 	lock *sync.RWMutex
-}
-
-func delByIndex(index int, slice [][]int) [][]int {
-	if index+1 >= len(slice) {
-		slice = slice[:index]
-	} else {
-		slice = append(slice[:index], slice[index+1:]...)
-	}
-	return slice
 }
 
 // YannakakisSeq performs the sequential Yannakakis' algorithm
 func YannakakisSeq(root *Node) *Node {
 	joiningIndex := &MyMap{}
-	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
+	joiningIndex.hash = make(map[IDJoiningIndex][][]int)
 	joiningIndex.lock = &sync.RWMutex{}
+
 	if len(root.Children) != 0 {
 		bottomUpSeq(root, joiningIndex)
 		topDownSeq(root, joiningIndex)
@@ -56,9 +45,98 @@ func topDownSeq(actual *Node, joiningIndex *MyMap) {
 	}
 }
 
+// the left node performs the semi join on the right node and update the right's table
+//TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
+func semiJoin(left *Node, right *Node, joiningIndex *MyMap) {
+	indexJoin := searchJoiningIndex(left, right, joiningIndex)
+
+	trashRow := make([]bool, len(right.Tuples))
+	for index, valuesRight := range right.Tuples {
+		for _, valuesLeft := range left.Tuples {
+			tupleMatch := true
+			for _, rowIndex := range indexJoin {
+				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
+					tupleMatch = false
+					break
+				}
+			}
+			if tupleMatch {
+				trashRow[index] = true
+				break
+			}
+		}
+	}
+	for i := len(trashRow) - 1; i >= 0; i-- {
+		if !trashRow[i] {
+			right.Tuples = delByIndex(i, right.Tuples)
+		}
+	}
+}
+
+func delByIndex(index int, slice [][]int) [][]int {
+	if index+1 >= len(slice) {
+		slice = slice[:index]
+	} else {
+		slice = append(slice[:index], slice[index+1:]...)
+	}
+	return slice
+}
+
+func searchJoiningIndex(left *Node, right *Node, joiningIndex *MyMap) [][]int {
+	indexJoin := make([][]int, 0)
+	joiningIndex.lock.RLock()
+	val, ok := joiningIndex.hash[IDJoiningIndex{x: left.ID, y: right.ID}]
+	joiningIndex.lock.RUnlock()
+	if ok {
+		indexJoin = val
+	} else {
+		invertedIndex := make([][]int, 0)
+		for iLeft, varLeft := range left.Bag {
+			for iRight, varRight := range right.Bag {
+				if varLeft == varRight {
+					invertedIndex = append(invertedIndex, []int{iRight, iLeft})
+					indexJoin = append(indexJoin, []int{iLeft, iRight})
+					break
+				}
+			}
+		}
+		joiningIndex.lock.Lock()
+		joiningIndex.hash[IDJoiningIndex{x: right.ID, y: left.ID}] = invertedIndex
+		joiningIndex.lock.Unlock()
+	}
+	return indexJoin
+}
+
+/*
+func semiJoinInMemory(left *Node, right *Node, indexJoin [][]int) {
+	trashRow := make([]bool, len(right.Tuples))
+	for index, valuesRight := range right.Tuples {
+		for _, valuesLeft := range left.Tuples {
+			tupleMatch := true
+			for _, rowIndex := range indexJoin {
+				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
+					tupleMatch = false
+					break
+				}
+			}
+			if tupleMatch {
+				trashRow[index] = true
+				break
+			}
+		}
+	}
+	for i := len(trashRow) - 1; i >= 0; i-- {
+		if !trashRow[i] {
+			right.Tuples = delByIndex(i, right.Tuples)
+		}
+	}
+}
+*/
+
+// YannakakisPar performs the parrallel Yannakakis' algorithm
 func YannakakisPar(root *Node) *Node {
 	joiningIndex := &MyMap{}
-	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
+	joiningIndex.hash = make(map[IDJoiningIndex][][]int)
 	joiningIndex.lock = &sync.RWMutex{}
 	if len(root.Children) != 0 {
 		parallelBottomUp(root, joiningIndex)
@@ -102,14 +180,7 @@ func parallelTopDown(actual *Node, joiningIndex *MyMap) {
 	wg.Wait()
 }
 
-// the left node performs the semi join on the right node and update the right's table
-//TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
-func semiJoin(left *Node, right *Node, joiningIndex *MyMap) {
-	indexJoin := searchJoiningIndex(left, right, joiningIndex)
-
-	semiJoinInMemory(left, right, indexJoin)
-}
-
+/*
 func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int, folder string) {
 
 	fileRight, rRight := OpenNodeFile(right.ID, folder)
@@ -178,56 +249,9 @@ func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int, folder string) {
 
 	fileRight.Close()
 }
+*/
 
-func semiJoinInMemory(left *Node, right *Node, indexJoin [][]int) {
-	trashRow := make([]bool, len(right.Tuples))
-	for index, valuesRight := range right.Tuples {
-		for _, valuesLeft := range left.Tuples {
-			tupleMatch := true
-			for _, rowIndex := range indexJoin {
-				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
-					tupleMatch = false
-					break
-				}
-			}
-			if tupleMatch {
-				trashRow[index] = true
-				break
-			}
-		}
-	}
-	for i := len(trashRow) - 1; i >= 0; i-- {
-		if !trashRow[i] {
-			right.Tuples = delByIndex(i, right.Tuples)
-		}
-	}
-}
-
-func searchJoiningIndex(left *Node, right *Node, joiningIndex *MyMap) [][]int {
-	indexJoin := make([][]int, 0)
-	joiningIndex.lock.RLock()
-	val, ok := joiningIndex.hash[IdJoiningIndex{x: left.ID, y: right.ID}]
-	joiningIndex.lock.RUnlock()
-	if ok {
-		indexJoin = val
-	} else {
-		invertedIndex := make([][]int, 0)
-		for iLeft, varLeft := range left.Bag {
-			for iRight, varRight := range right.Bag {
-				if varLeft == varRight {
-					invertedIndex = append(invertedIndex, []int{iRight, iLeft})
-					indexJoin = append(indexJoin, []int{iLeft, iRight})
-					break
-				}
-			}
-		}
-		joiningIndex.lock.Lock()
-		joiningIndex.hash[IdJoiningIndex{x: right.ID, y: left.ID}] = invertedIndex
-		joiningIndex.lock.Unlock()
-	}
-	return indexJoin
-}
-
+/*
 func OpenNodeFile(id int, folder string) (*os.File, *bufio.Scanner) {
 	fi, err := os.Open("tables-" + folder + strconv.Itoa(id) + ".table")
 	if err != nil {
@@ -239,7 +263,9 @@ func OpenNodeFile(id int, folder string) (*os.File, *bufio.Scanner) {
 	}
 	return fi, bufio.NewScanner(fi)
 }
+*/
 
+/*
 func GetValues(line string, numVariables int) []int {
 	reg := regexp.MustCompile("(.*)")
 	valuesString := reg.FindStringSubmatch(line)[1]
@@ -260,3 +286,4 @@ func GetValues(line string, numVariables int) []int {
 	}
 	return values
 }
+*/
