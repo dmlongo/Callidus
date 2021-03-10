@@ -11,60 +11,154 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/dmlongo/callidus/ctr"
 )
 
-func SubCSPComputation(domains map[string][]int, constraints []*Constraint, nodes []*Node, folder string, subDebug bool, inMemory bool, parallel bool) bool {
-	subCspFolder := "subCSP-" + folder
-	tablesFolder := "tables-" + folder
-	err := os.RemoveAll(subCspFolder)
-	if err != nil {
-		panic(err)
-	}
-	err = os.RemoveAll(tablesFolder)
-	if err != nil {
-		panic(err)
-	}
-	err = os.Mkdir(subCspFolder, 0777)
-	if err != nil {
-		panic(err)
-	}
-	err = os.Mkdir(tablesFolder, 0777)
-	if err != nil {
-		panic(err)
-	}
-	satisfiable := true
-	if parallel {
-		subCspSemaphore := &sync.WaitGroup{}
-		subCspSemaphore.Add(len(nodes))
-		checkSatisfiableSemaphore := &sync.WaitGroup{}
-		checkSatisfiableSemaphore.Add(1)
-		satisfiableChan := make(chan bool, len(nodes))
-		for _, node := range nodes {
-			go CreateAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, subCspSemaphore, satisfiableChan, subDebug, inMemory, parallel)
-			// CreateAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, subCspSemaphore, satisfiableChan, subDebug, inMemory, parallel)
+// SolveSubCspSeq solve the CSPs associated to a hypertree sequentially
+func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[string]ctr.Constraint, baseDir string) bool {
+	subCspFolder := makeDir(baseDir + "subs/")
+
+	sat := true
+	for _, node := range nodes {
+		nodeCtrs, nodeVars := filterCtrsVars(node, constraints, domains)
+		subFile := subCspFolder + "sub" + strconv.Itoa(node.ID) + ".xml"
+		ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
+		sat = solveCSPSeq(subFile, node)
+		if !sat {
+			break
 		}
-		go func() {
-			defer checkSatisfiableSemaphore.Done()
-			for satisfiable = range satisfiableChan {
-				if !satisfiable {
-					break
+	}
+	return sat
+}
+
+func solveCSPSeq(cspFile string, node *Node) bool {
+	cmd := exec.Command("./libs/nacre", cspFile, "-complete", "-sols", "-verb=3")
+	out, err := cmd.StdoutPipe() // TODO why StdoutPipe() and not just Run?
+	if err != nil {
+		panic(err)
+	}
+	reader := bufio.NewReader(out)
+	if err := cmd.Start(); err != nil {
+		panic(err)
+	}
+
+	return readTuples(reader, node)
+}
+
+func readTuples(reader *bufio.Reader, node *Node) bool {
+	solFound := false
+	node.Tuples = make(Relation, 0)
+	for {
+		line, err := reader.ReadString('\n')
+		if err == io.EOF && len(line) == 0 {
+			break
+		}
+		if strings.HasPrefix(line, "v") {
+			reg := regexp.MustCompile(".*<values>(.*) </values>.*")
+			tup := make([]int, len(node.Bag))
+			for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+				v, err := strconv.Atoi(value)
+				if err != nil {
+					panic(err)
 				}
+				tup[i] = v
 			}
-		}()
-		subCspSemaphore.Wait()
-		close(satisfiableChan)
-		checkSatisfiableSemaphore.Wait()
-	} else {
-		for _, node := range nodes {
-			satisfiable = CreateAndSolveSubCSP(subCspFolder, tablesFolder, node, domains, constraints, nil, nil, subDebug, inMemory, parallel)
-			if !satisfiable {
+			node.Tuples = append(node.Tuples, tup)
+			solFound = true
+		}
+	}
+	return solFound
+}
+
+// SolveSubCspPar solve the CSPs associated to a hypertree in parallel
+func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[string]ctr.Constraint, baseDir string) bool {
+	subCspFolder := makeDir(baseDir + "subs/")
+
+	sat := true
+	subCspWg := &sync.WaitGroup{}
+	subCspWg.Add(len(nodes))
+	checkSatWg := &sync.WaitGroup{}
+	checkSatWg.Add(1)
+	satChan := make(chan bool, len(nodes))
+	for _, node := range nodes {
+		go func(node *Node) {
+			nodeCtrs, nodeVars := filterCtrsVars(node, constraints, domains)
+			subFile := subCspFolder + "sub" + strconv.Itoa(node.ID) + ".xml"
+			ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
+			satChan <- solveCSPPar(subFile, node, subCspWg, satChan)
+		}(node)
+	}
+	go func() {
+		defer checkSatWg.Done()
+		for sat = range satChan {
+			if !sat {
 				break
 			}
 		}
-	}
-	return satisfiable
+	}()
+	subCspWg.Wait()
+	close(satChan)
+	checkSatWg.Wait()
+	return sat
 }
 
+func solveCSPPar(cspFile string, node *Node, wg *sync.WaitGroup, satChan chan bool) bool {
+	defer wg.Done()
+	cmd := exec.Command("./libs/nacre", cspFile, "-complete", "-sols", "-verb=3")
+	out, err := cmd.StdoutPipe() // TODO why StdoutPipe() and not just Run?
+	if err != nil {
+		panic(err)
+	}
+	reader := bufio.NewReader(out)
+	if err := cmd.Start(); err != nil {
+		panic(err)
+	}
+
+	for {
+		select {
+		case sat := <-satChan:
+			if !sat {
+				err = cmd.Process.Kill()
+				if err != nil {
+					panic(err)
+				}
+				return false
+			}
+		default:
+			return readTuples(reader, node)
+		}
+	}
+}
+
+func filterCtrsVars(n *Node, ctrs map[string]ctr.Constraint, doms map[string]string) ([]ctr.Constraint, map[string]string) {
+	outCtrs := make([]ctr.Constraint, 0, len(n.Cover))
+	outVars := make(map[string]string)
+	for _, e := range n.Cover {
+		c := ctrs[e]
+		outCtrs = append(outCtrs, c)
+		for _, v := range c.Variables() {
+			if _, ok := outVars[v]; !ok {
+				outVars[v] = doms[v]
+			}
+		}
+	}
+	return outCtrs, outVars
+}
+
+func makeDir(name string) string {
+	err := os.RemoveAll(name)
+	if err != nil {
+		panic(err)
+	}
+	err = os.Mkdir(name, 0777)
+	if err != nil {
+		panic(err)
+	}
+	return name
+}
+
+/*
 func getPossibleValues(constraint *Constraint) string {
 	possibleValues := "<supports> "
 	if !constraint.CType {
@@ -90,110 +184,6 @@ func getPossibleValues(constraint *Constraint) string {
 	return possibleValues
 }
 
-func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *Node, subDebug bool, inMemory bool, parallel bool) bool {
-	defer func(debugOption bool) {
-		if !debugOption {
-			err := os.Remove(xmlFile)
-			if err != nil {
-				panic(err)
-			}
-		}
-	}(subDebug)
-	cmd := exec.Command("./libs/nacre", xmlFile, "-complete", "-sols", "-verb=3")
-	out, err := cmd.StdoutPipe()
-	if err != nil {
-		panic(err)
-	}
-	reader := bufio.NewReader(out)
-	var line string
-	err = cmd.Start()
-	if err != nil {
-		panic(err)
-	}
-
-	solFound := false
-	var outputTable *os.File = nil
-	if inMemory {
-		node.PossibleValues = make([][]int, 0)
-	} else {
-		outputTable, err = os.OpenFile(tableFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
-	}
-	if err != nil {
-		panic(err)
-	}
-	if parallel {
-		exit := false
-		for !exit {
-			select {
-			case check := <-satisfiableChan:
-				if !check {
-					err = cmd.Process.Kill()
-					if err != nil {
-						panic(err)
-					}
-					exit = true
-					break
-				}
-			default:
-				line, err = reader.ReadString('\n')
-				if err == io.EOF && len(line) == 0 {
-					exit = true
-					break
-				}
-				if strings.HasPrefix(line, "v") {
-					reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-					if inMemory {
-						temp := make([]int, len(node.Bag))
-						for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
-							v, err := strconv.Atoi(value)
-							if err != nil {
-								panic(err)
-							}
-							temp[i] = v
-						}
-						node.PossibleValues = append(node.PossibleValues, temp)
-					} else {
-						_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
-						if err != nil {
-							panic(err)
-						}
-					}
-					solFound = true
-				}
-			}
-		}
-
-	} else {
-		for {
-			line, err = reader.ReadString('\n')
-			if err == io.EOF && len(line) == 0 {
-				break
-			}
-			if strings.HasPrefix(line, "v") {
-				reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-				if inMemory {
-					temp := make([]int, len(node.Bag))
-					for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
-						v, err := strconv.Atoi(value)
-						if err != nil {
-							panic(err)
-						}
-						temp[i] = v
-					}
-					node.PossibleValues = append(node.PossibleValues, temp)
-				} else {
-					_, err = outputTable.WriteString(reg.FindStringSubmatch(line)[1] + "\n")
-					if err != nil {
-						panic(err)
-					}
-				}
-				solFound = true
-			}
-		}
-	}
-	return solFound
-}
-
 /*func doNacreMakeFile(){
 	cmd := exec.Command("make")
 	cmd.Dir = "/mnt/c/Users/simon/Desktop/Università/Tesi/Programmi/CSP_Project/libs/nacre_master/core"
@@ -202,6 +192,7 @@ func solve(xmlFile string, tableFile string, satisfiableChan chan bool, node *No
 	}
 }*/
 
+// PrintMemUsage prints the memory usage
 func PrintMemUsage() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)

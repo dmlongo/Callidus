@@ -28,66 +28,73 @@ func delByIndex(index int, slice [][]int) [][]int {
 	return slice
 }
 
-func Yannakakis(root *Node, parallel bool, inMemory bool, folder string) *Node {
+// YannakakisSeq performs the sequential Yannakakis' algorithm
+func YannakakisSeq(root *Node) *Node {
 	joiningIndex := &MyMap{}
 	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
 	joiningIndex.lock = &sync.RWMutex{}
 	if len(root.Children) != 0 {
-		if parallel {
-			parallelBottomUp(root, joiningIndex, inMemory, folder)
-			parallelTopDown(root, joiningIndex, inMemory, folder)
-		} else {
-			sequentialBottomUp(root, joiningIndex, inMemory, folder)
-			sequentialTopDown(root, joiningIndex, inMemory, folder)
-		}
+		bottomUpSeq(root, joiningIndex)
+		topDownSeq(root, joiningIndex)
 	}
 	return root
 }
 
-func sequentialBottomUp(actual *Node, joiningIndex *MyMap, inMemory bool, folder string) {
-	for _, son := range actual.Children {
-		sequentialBottomUp(son, joiningIndex, inMemory, folder)
+func bottomUpSeq(curr *Node, joiningIndex *MyMap) {
+	for _, child := range curr.Children {
+		bottomUpSeq(child, joiningIndex)
 	}
-	if actual.Father != nil {
-		doSemiJoin(actual, actual.Father, joiningIndex, inMemory, folder)
-	}
-}
-
-func sequentialTopDown(actual *Node, joiningIndex *MyMap, inMemory bool, folder string) {
-	for _, son := range actual.Children {
-		doSemiJoin(actual, son, joiningIndex, inMemory, folder)
-		sequentialTopDown(son, joiningIndex, inMemory, folder)
+	if curr.Father != nil {
+		semiJoin(curr, curr.Father, joiningIndex)
 	}
 }
 
-func parallelBottomUp(actual *Node, joiningIndex *MyMap, inMemory bool, folder string) {
+func topDownSeq(actual *Node, joiningIndex *MyMap) {
+	for _, child := range actual.Children {
+		semiJoin(actual, child, joiningIndex)
+		topDownSeq(child, joiningIndex)
+	}
+}
+
+func YannakakisPar(root *Node) *Node {
+	joiningIndex := &MyMap{}
+	joiningIndex.hash = make(map[IdJoiningIndex][][]int)
+	joiningIndex.lock = &sync.RWMutex{}
+	if len(root.Children) != 0 {
+		parallelBottomUp(root, joiningIndex)
+		parallelTopDown(root, joiningIndex)
+	}
+	return root
+}
+
+func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
 	var wg *sync.WaitGroup = &sync.WaitGroup{}
 	for _, son := range actual.Children {
 		if len(son.Children) != 0 && len(actual.Children) > 1 {
 			wg.Add(1)
 			go func(s *Node) {
-				parallelBottomUp(s, joiningIndex, inMemory, folder)
+				parallelBottomUp(s, joiningIndex)
 				wg.Done()
 			}(son)
 		} else {
-			parallelBottomUp(son, joiningIndex, inMemory, folder)
+			parallelBottomUp(son, joiningIndex)
 		}
 	}
 	wg.Wait()
 	if actual.Father != nil {
 		actual.Father.Lock.Lock()
-		doSemiJoin(actual, actual.Father, joiningIndex, inMemory, folder)
+		semiJoin(actual, actual.Father, joiningIndex)
 		actual.Father.Lock.Unlock()
 	}
 }
 
-func parallelTopDown(actual *Node, joiningIndex *MyMap, inMemory bool, folder string) {
+func parallelTopDown(actual *Node, joiningIndex *MyMap) {
 	var wg *sync.WaitGroup = &sync.WaitGroup{}
 	wg.Add(len(actual.Children))
 	for _, son := range actual.Children {
-		doSemiJoin(actual, son, joiningIndex, inMemory, folder)
+		semiJoin(actual, son, joiningIndex)
 		go func(s *Node) {
-			parallelTopDown(s, joiningIndex, inMemory, folder)
+			parallelTopDown(s, joiningIndex)
 			wg.Done()
 		}(son)
 
@@ -97,15 +104,10 @@ func parallelTopDown(actual *Node, joiningIndex *MyMap, inMemory bool, folder st
 
 // the left node performs the semi join on the right node and update the right's table
 //TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
-func doSemiJoin(left *Node, right *Node, joiningIndex *MyMap, inMemory bool, folder string) {
+func semiJoin(left *Node, right *Node, joiningIndex *MyMap) {
 	indexJoin := searchJoiningIndex(left, right, joiningIndex)
 
-	if inMemory {
-		semiJoinInMemory(left, right, indexJoin)
-	} else {
-		semiJoinOnFile(left, right, indexJoin, folder)
-	}
-
+	semiJoinInMemory(left, right, indexJoin)
 }
 
 func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int, folder string) {
@@ -178,9 +180,9 @@ func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int, folder string) {
 }
 
 func semiJoinInMemory(left *Node, right *Node, indexJoin [][]int) {
-	trashRow := make([]bool, len(right.PossibleValues))
-	for index, valuesRight := range right.PossibleValues {
-		for _, valuesLeft := range left.PossibleValues {
+	trashRow := make([]bool, len(right.Tuples))
+	for index, valuesRight := range right.Tuples {
+		for _, valuesLeft := range left.Tuples {
 			tupleMatch := true
 			for _, rowIndex := range indexJoin {
 				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
@@ -196,7 +198,7 @@ func semiJoinInMemory(left *Node, right *Node, indexJoin [][]int) {
 	}
 	for i := len(trashRow) - 1; i >= 0; i-- {
 		if !trashRow[i] {
-			right.PossibleValues = delByIndex(i, right.PossibleValues)
+			right.Tuples = delByIndex(i, right.Tuples)
 		}
 	}
 }

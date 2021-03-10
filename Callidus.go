@@ -7,17 +7,22 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"sync"
 	"time"
 
+	"github.com/dmlongo/callidus/ctr"
 	"github.com/dmlongo/callidus/decomp"
 	"github.com/dmlongo/callidus/ext"
 )
 
 var csp, ht, out string
-var subInMem, subSeq, subDebug, ySeq, printSol bool
-var folder string
+var htDebug, subInMem, subSeq, subDebug, ySeq, printSol bool
 var contSols int
+
+const wrkdir = "wrkdir"
+
+var cspDir string
+var cspName string
+var baseDir string
 
 func main() {
 	setFlags()
@@ -27,93 +32,117 @@ func main() {
 
 	fmt.Print("Creating hypergraph... ")
 	startConversion := time.Now()
-	ext.Convert(csp)
+	hypergraph := ext.Convert(csp, baseDir)
 	fmt.Println("done in", time.Since(startConversion))
 
-	var hyperTreeRaw string
+	var rawHypertree string
 	if ht == "" {
+		hg := baseDir + cspName + ".hg"
 		fmt.Print("Decomposing hypergraph... ")
 		startDecomposition := time.Now()
-		hyperTreeRaw = ext.Decompose(csp, "output"+folder, subInMem)
+		if htDebug {
+			ht = baseDir + cspName + ".ht"
+			rawHypertree = ext.DecomposeToFile(hg, ht)
+		} else {
+			rawHypertree = ext.Decompose(hg)
+		}
 		fmt.Println("done in", time.Since(startDecomposition))
-		ht = "output" + folder + "hypertree"
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(3)
+	//var wg sync.WaitGroup // TODO remove
+	//wg.Add(3)
 
 	fmt.Print("Parsing hypertree, domains and constraints... ")
 	startPrep := time.Now()
-	var nodes []*decomp.Node
+	var tree decomp.Hypertree
 	var root *decomp.Node
-	go func() {
-		if subInMem {
-			root, nodes = ext.ParseDecompInMemory(&hyperTreeRaw)
-		} else {
-			root, nodes = ext.ParseDecomp(ht)
-		}
-		wg.Done()
-	}()
-
-	var domains map[string][]int
-	go func() {
-		domains = ext.ParseDomains(csp, folder)
-		wg.Done()
-	}()
-
-	var constraints []*decomp.Constraint
-	go func() {
-		constraints = ext.ParseConstraints(csp, "output"+folder)
-		wg.Done()
-	}()
-
-	wg.Wait()
-	fmt.Println("done in", time.Since(startPrep))
-	if !subDebug {
-		err := os.RemoveAll("output" + folder)
-		if err != nil {
-			panic(err)
-		}
+	//go func() {
+	if ht != "" || htDebug {
+		root, tree = ext.ParseDecompFromFile(ht)
+	} else {
+		root, tree = ext.ParseDecomp(&rawHypertree)
 	}
+	tree.Complete(hypergraph)
+	//	wg.Done()
+	//}()
+	//fmt.Println(root)
 
-	fmt.Print("Solving sub-CSPs... ")
+	var domains map[string]string
+	//go func() {
+	domFile := baseDir + cspName + ".dom"
+	domains = ext.ParseDomains(domFile)
+	//	wg.Done()
+	//}()
+
+	var constraints map[string]ctr.Constraint
+	//go func() {
+	ctrFile := baseDir + cspName + ".ctr"
+	constraints = ext.ParseConstraints(ctrFile)
+	//	wg.Done()
+	//}()
+
+	//wg.Wait()
+	fmt.Println("done in", time.Since(startPrep))
+
 	//go func() {
 	//	for {
 	//		PrintMemUsage()
 	//		time.Sleep(5 * time.Second)
 	//	}
 	//}()
+	var satisfiable bool
+	fmt.Print("Solving sub-CSPs... ")
 	startSubComputation := time.Now()
-	satisfiable := decomp.SubCSPComputation(domains, constraints, nodes, folder, subDebug, subInMem, !subSeq)
+	if subSeq {
+		satisfiable = decomp.SolveSubCspSeq(tree, domains, constraints, baseDir)
+	} else {
+		satisfiable = decomp.SolveSubCspPar(tree, domains, constraints, baseDir) // TODO a bit buggy
+	}
 	fmt.Println("done in", time.Since(startSubComputation))
 	if !satisfiable {
 		fmt.Println("NO SOLUTIONS")
 		return
 	}
-	if !subDebug {
-		err := os.RemoveAll("subCSP-" + folder)
+	if subDebug {
+		tablesFolder := baseDir + "tables/"
+		err := os.RemoveAll(tablesFolder)
 		if err != nil {
 			panic(err)
 		}
+		err = os.Mkdir(tablesFolder, 0777)
+		if err != nil {
+			panic(err)
+		}
+		for _, node := range tree {
+			tableFile := tablesFolder + "sub" + strconv.Itoa(node.ID) + ".tab"
+			ext.CreateSolutionTable(tableFile, node)
+		}
 	}
+
 	fmt.Print("Running Yannakakis... ")
 	startYannakakis := time.Now()
-	decomp.Yannakakis(root, !subSeq, subInMem, folder)
+	if ySeq {
+		decomp.YannakakisSeq(root)
+	} else {
+		decomp.YannakakisPar(root)
+	}
 	fmt.Println("done in", time.Since(startYannakakis))
 	fmt.Println("Callidus solved", csp, "in", time.Since(start))
+	/*
 
-	finalResult := make([]map[string]int, 0)
+		finalResult := make([]map[string]int, 0)
 
-	startSearchResult := time.Now()
-	searchResults(root, &finalResult)
-	fmt.Println("Search results ended in", time.Since(startSearchResult))
+		startSearchResult := time.Now()
+		searchResults(root, &finalResult)
+		fmt.Println("Search results ended in", time.Since(startSearchResult))
 
-	if printSol {
-		printSolution(&finalResult)
-	}
+		if printSol {
+			printSolution(&finalResult)
+		}
 
+	*/
 	if !subDebug {
-		err := os.RemoveAll("tables-" + folder)
+		err := os.RemoveAll(baseDir)
 		if err != nil {
 			panic(err)
 		}
@@ -127,9 +156,10 @@ func setFlags() {
 	flagSet.StringVar(&csp, "csp", "", "Path to the CSP to solve (XCSP3 format)")
 	flagSet.StringVar(&ht, "ht", "", "Path to a decomposition of the CSP to solve (GML format)")
 	flagSet.StringVar(&out, "out", "", "Save the solutions of the CSP into the specified file")
+	flagSet.BoolVar(&htDebug, "htDebug", false, "Write hypertree on disk for debug (false if -ht is set)")
+	flagSet.BoolVar(&subDebug, "subDebug", false, "Write sub-CSP files on disk for debug")
 	flagSet.BoolVar(&subInMem, "subInMem", false, "Activate in-memory computation of sub-CSPs")
 	flagSet.BoolVar(&subSeq, "subSeq", false, "Activate sequential computation of sub-CSPs")
-	flagSet.BoolVar(&subDebug, "subDebug", false, "Activate debug for sub-CSPs")
 	flagSet.BoolVar(&ySeq, "ySeq", false, "Use sequential Yannakakis' algorithm")
 	flagSet.BoolVar(&printSol, "printSol", true, "Print solutions of the CSP")
 
@@ -170,11 +200,16 @@ func setFlags() {
 		os.Exit(1)
 	}
 
+	if ht != "" {
+		htDebug = false
+	}
+
 	re := regexp.MustCompile(".*/")
-	folder = re.ReplaceAllString(csp, "")
+	cspName = re.ReplaceAllString(csp, "")
 	re = regexp.MustCompile("\\..*")
-	folder = re.ReplaceAllString(folder, "")
-	folder = folder + "/"
+	cspDir = re.ReplaceAllString(cspName, "")
+	baseDir = wrkdir + "/" + cspDir + "/"
+	//fmt.Println("cspDir=", cspDir, ", cspName=", cspName, ", baseDir=", baseDir)
 
 	//if ht == "" {ht = "output" + folder + "hypertree"}
 	//fmt.Printf("csp=%v\nht=%v\nout=%v\n", csp, ht, out)
@@ -182,6 +217,7 @@ func setFlags() {
 	contSols = 0
 }
 
+/*
 func printSolution(result *[]map[string]int) {
 	if len(*result) > 0 {
 		if out == "" {
@@ -268,7 +304,7 @@ func searchNewResultsInMemory(actual *decomp.Node, joinVariables *map[string]int
 	newResults := make([]map[string]int, 0)
 	addNewResults := false
 
-	for _, singleNodeSolution := range actual.PossibleValues {
+	for _, singleNodeSolution := range actual.Tuples {
 		computationNewResults(actual, singleNodeSolution, joinVariables, &joinDoneCount, finalResults, &addNewResults, &newResults)
 	}
 
@@ -280,7 +316,7 @@ func searchNewResultsOnFile(actual *decomp.Node, joinVariables *map[string]int, 
 	newResults := make([]map[string]int, 0)
 	addNewResults := false
 
-	fileActual, rActual := decomp.OpenNodeFile(actual.ID, folder)
+	fileActual, rActual := decomp.OpenNodeFile(actual.ID, cspDir)
 	for rActual.Scan() {
 		singleNodeSolution := decomp.GetValues(rActual.Text(), len(actual.Bag))
 		if singleNodeSolution == nil {
@@ -354,3 +390,4 @@ func computationNewResults(actual *decomp.Node, singleNodeSolution []int, joinVa
 		*finalResults = append(*finalResults, resTemp)
 	}
 }
+*/

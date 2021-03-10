@@ -1,25 +1,23 @@
 package ext
 
 import (
-	"bytes"
-	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/dmlongo/callidus/decomp"
 )
 
 // Convert a CSP into a hypergraph
-func Convert(cspPath string) {
+func Convert(cspPath string, outDir string) decomp.Hypergraph {
 	// TODO add logging
-	err := os.RemoveAll("output")
+	err := os.RemoveAll(outDir) // TODO removing wastes time, not necessary
 	if err != nil {
 		panic(err)
 	}
-	cmd := exec.Command("java", "-jar", "libs/hgtools.jar", "-convert", "-xcsp", cspPath)
-	//var out bytes.Buffer
-	var stderr bytes.Buffer
-	//cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	if err = cmd.Run(); err != nil { // TODO doesn't throw error when command is wrong
-		panic(fmt.Sprint(err) + ":" + stderr.String())
+	cmd := exec.Command("java", "-jar", "libs/hgtools.jar", "-convert", "-xcsp", "-print", "-out", outDir, cspPath)
+	stdout, err := cmd.StdoutPipe()
+	if err := cmd.Start(); err != nil {
+		panic(err)
 	}
+	return decomp.BuildHypergraph(stdout)
 }

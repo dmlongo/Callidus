@@ -1,52 +1,42 @@
 package ext
 
 import (
-	"bytes"
-	"fmt"
 	"os/exec"
 	"runtime"
-	"strings"
 )
 
 // Decompose the hypergraph of a CSP
-func Decompose(cspPath string, folder string, inMemory bool) string {
-	var hypergraphPath string
-	if strings.HasSuffix(cspPath, ".xml") {
-		hypergraphPath = strings.ReplaceAll(cspPath, ".xml", "hypergraph.hg")
-	} else if strings.HasSuffix(cspPath, ".lzma") {
-		hypergraphPath = strings.ReplaceAll(cspPath, ".lzma", "hypergraph.hg")
+func Decompose(hgPath string) string {
+	var cmdName string
+	switch runtime.GOOS {
+	case "windows":
+		cmdName = "libs/balanced.exe"
+	case "linux":
+		cmdName = "./libs/BalancedGo"
 	}
-	hypergraphPath = fmt.Sprintf(folder + hypergraphPath)
 
+	// TODO add logging, check if you get errors if command is wrong
+	out, err := exec.Command(cmdName, "-graph", hgPath, "-approx", "3600", "-det").Output()
+	if err != nil {
+		panic(err)
+	}
+	return string(out)
+}
+
+// DecomposeToFile decompose a hypergraph and saves the decomposition on a file
+func DecomposeToFile(hgPath string, htPath string) string {
 	var name string
 	switch runtime.GOOS {
 	case "windows":
 		name = "libs/balanced.exe"
 	case "linux":
-		name = "./libs/balancedLinux"
+		name = "./libs/BalancedGo"
 	}
 
-	// TODO add logging, avoid code repetition, check if you get errors if command is wrong
-	var cmd *exec.Cmd
-	if inMemory {
-		cmd = exec.Command(name, "-graph", hypergraphPath, "-approx", "3600", "-det")
-		output, err := cmd.Output()
-		var out bytes.Buffer
-		var stderr bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = &stderr
-		if err != nil {
-			panic(fmt.Sprint(err) + ": " + stderr.String())
-		}
-		return string(output)
+	// TODO add logging, check if you get errors if command is wrong
+	out, err := exec.Command(name, "-graph", hgPath, "-approx", "3600", "-det", "-gml", htPath).Output()
+	if err != nil {
+		panic(err)
 	}
-	cmd = exec.Command(name, "-graph", hypergraphPath, "-approx", "3600", "-det", "-gml", folder+"hypertree")
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		panic(fmt.Sprint(err) + ": " + stderr.String())
-	}
-	return ""
+	return string(out)
 }

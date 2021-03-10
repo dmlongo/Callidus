@@ -22,3 +22,4 @@ output*
 # vendor/
 /XCSP_Instances/
 examples/
+wrkdir/
