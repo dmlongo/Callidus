@@ -81,6 +81,7 @@ func (tree *Hypertree) attach(e Edge, maxID *int) {
 			m := Node{ID: *maxID, Father: n}
 			m.SetBag(e.vertices)
 			m.SetCover([]string{e.name})
+			n.AddChild(&m)
 			*tree = append(*tree, &m)
 			break
 		}
