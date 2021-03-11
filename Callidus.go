@@ -15,7 +15,7 @@ import (
 )
 
 var csp, ht, out string
-var htDebug, subInMem, subSeq, subDebug, ySeq, printSol bool
+var htDebug, subInMem, subSeq, subDebug, ySeq, solDebug, printSol bool
 var contSols int
 
 const wrkdir = "wrkdir"
@@ -128,19 +128,25 @@ func main() {
 	}
 	fmt.Println("done in", time.Since(startYannakakis))
 	fmt.Println("Callidus solved", csp, "in", time.Since(start))
-	/*
 
-		finalResult := make([]map[string]int, 0)
+	finalResult := make([]map[string]int, 0)
+	startSearchResult := time.Now()
+	searchResults(root, &finalResult)
+	fmt.Println("Search results ended in", time.Since(startSearchResult))
 
-		startSearchResult := time.Now()
-		searchResults(root, &finalResult)
-		fmt.Println("Search results ended in", time.Since(startSearchResult))
-
-		if printSol {
-			printSolution(&finalResult)
+	if solDebug {
+		for _, sol := range finalResult {
+			if err, ok := ext.CheckSolution(csp, sol); !ok {
+				panic(err)
+				//panic(fmt.Sprintf("%v is not a solution.", sol))
+			}
 		}
+	}
 
-	*/
+	if printSol {
+		printSolution(finalResult)
+	}
+
 	if !subDebug {
 		err := os.RemoveAll(baseDir)
 		if err != nil {
@@ -161,6 +167,7 @@ func setFlags() {
 	flagSet.BoolVar(&subInMem, "subInMem", false, "Activate in-memory computation of sub-CSPs")
 	flagSet.BoolVar(&subSeq, "subSeq", false, "Activate sequential computation of sub-CSPs")
 	flagSet.BoolVar(&ySeq, "ySeq", false, "Use sequential Yannakakis' algorithm")
+	flagSet.BoolVar(&solDebug, "solDebug", false, "Check solutions of the CSP")
 	flagSet.BoolVar(&printSol, "printSol", true, "Print solutions of the CSP")
 
 	parseError := flagSet.Parse(os.Args[1:])
@@ -217,17 +224,16 @@ func setFlags() {
 	contSols = 0
 }
 
-/*
-func printSolution(result *[]map[string]int) {
-	if len(*result) > 0 {
+func printSolution(result []map[string]int) {
+	if len(result) > 0 {
 		if out == "" {
-			for indexResult, res := range *result {
+			for indexResult, res := range result {
 				fmt.Print("Sol " + strconv.Itoa(indexResult+1) + "\n")
 				for key, value := range res {
 					fmt.Print(key + " -> " + strconv.Itoa(value) + "\n")
 				}
 			}
-			fmt.Print("Solutions found: " + strconv.Itoa(len(*result)) + "\n")
+			fmt.Print("Solutions found: " + strconv.Itoa(len(result)) + "\n")
 		} else {
 			err := os.RemoveAll(out)
 			if err != nil {
@@ -237,7 +243,7 @@ func printSolution(result *[]map[string]int) {
 			if err != nil {
 				panic(err)
 			}
-			for indexResult, res := range *result {
+			for indexResult, res := range result {
 				_, err = file.WriteString("Sol " + strconv.Itoa(indexResult+1) + "\n")
 				if err != nil {
 					panic(err)
@@ -249,7 +255,7 @@ func printSolution(result *[]map[string]int) {
 					}
 				}
 			}
-			_, err = file.WriteString("Solutions found: " + strconv.Itoa(len(*result)))
+			_, err = file.WriteString("Solutions found: " + strconv.Itoa(len(result)))
 			if err != nil {
 				panic(err)
 			}
@@ -259,13 +265,13 @@ func printSolution(result *[]map[string]int) {
 	}
 }
 
-func searchResults(actual *decomp.Node, finalResults *[]map[string]int) {
+func searchResults(curr *decomp.Node, finalResults *[]map[string]int) {
 	joinVariables := make(map[string]int, 0)
-	if actual.Father != nil {
-		for _, varFather := range actual.Father.Bag {
-			for index, varActual := range actual.Bag {
-				if varActual == varFather {
-					joinVariables[varActual] = index
+	if curr.Parent != nil {
+		for _, varFather := range curr.Parent.Bag {
+			for index, varCurr := range curr.Bag {
+				if varCurr == varFather {
+					joinVariables[varCurr] = index
 					break
 				}
 			}
@@ -275,15 +281,15 @@ func searchResults(actual *decomp.Node, finalResults *[]map[string]int) {
 	addNewResults := false
 	newResults := make([]map[string]int, 0)
 
-	if subInMem {
-		addNewResults, newResults = searchNewResultsInMemory(actual, &joinVariables, finalResults)
-	} else {
-		addNewResults, newResults = searchNewResultsOnFile(actual, &joinVariables, finalResults)
+	//if subInMem {
+	addNewResults, newResults = searchNewResultsInMemory(curr, &joinVariables, finalResults)
+	/*} else {
+		addNewResults, newResults = searchNewResultsOnFile(curr, &joinVariables, finalResults)
 		if newResults == nil {
 			*finalResults = nil
 			return
 		}
-	}
+	}*/
 
 	if addNewResults {
 		for _, singleNewResult := range newResults {
@@ -293,7 +299,7 @@ func searchResults(actual *decomp.Node, finalResults *[]map[string]int) {
 
 	fmt.Println(len(*finalResults))
 
-	for _, son := range actual.Children {
+	for _, son := range curr.Children {
 		searchResults(son, finalResults)
 	}
 
@@ -311,6 +317,7 @@ func searchNewResultsInMemory(actual *decomp.Node, joinVariables *map[string]int
 	return addNewResults, newResults
 }
 
+/*
 func searchNewResultsOnFile(actual *decomp.Node, joinVariables *map[string]int, finalResults *[]map[string]int) (bool, []map[string]int) {
 	joinDoneCount := make(map[string]int)
 	newResults := make([]map[string]int, 0)
@@ -332,6 +339,7 @@ func searchNewResultsOnFile(actual *decomp.Node, joinVariables *map[string]int, 
 
 	return addNewResults, newResults
 }
+*/
 
 func computationNewResults(actual *decomp.Node, singleNodeSolution []int, joinVariables *map[string]int, joinDoneCount *map[string]int, finalResults *[]map[string]int, addNewResults *bool, newResults *[]map[string]int) {
 	if singleNodeSolution == nil {
@@ -390,4 +398,3 @@ func computationNewResults(actual *decomp.Node, singleNodeSolution []int, joinVa
 		*finalResults = append(*finalResults, resTemp)
 	}
 }
-*/

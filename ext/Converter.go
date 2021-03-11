@@ -16,6 +16,9 @@ func Convert(cspPath string, outDir string) decomp.Hypergraph {
 	}
 	cmd := exec.Command("java", "-jar", "libs/hgtools.jar", "-convert", "-xcsp", "-print", "-out", outDir, cspPath)
 	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		panic(err)
+	}
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	}
