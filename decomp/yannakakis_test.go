@@ -2,14 +2,28 @@ package decomp
 
 import "testing"
 
-func Test1(t *testing.T) {
+func TestSeq1(t *testing.T) {
+	input, output := test1Data()
+	if !equals(YannakakisSeq(input), output) {
+		t.Error()
+	}
+}
+
+func TestSeq2(t *testing.T) {
+	input, output := test2Data()
+	if !equals(YannakakisSeq(input), output) {
+		t.Error()
+	}
+}
+
+func TestPar1(t *testing.T) {
 	input, output := test1Data()
 	if !equals(YannakakisPar(input), output) {
 		t.Error()
 	}
 }
 
-func Test2(t *testing.T) {
+func TestPar2(t *testing.T) {
 	input, output := test2Data()
 	if !equals(YannakakisPar(input), output) {
 		t.Error()

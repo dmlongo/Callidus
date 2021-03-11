@@ -20,6 +20,7 @@ func (hg Hypergraph) AddEdge(name string, vertices []string) {
 	hg[name] = Edge{name: name, vertices: vertices}
 }
 
+// BuildHypergraph from a file
 func BuildHypergraph(out io.ReadCloser) Hypergraph {
 	hg := make(Hypergraph)
 	reader := bufio.NewReader(out)

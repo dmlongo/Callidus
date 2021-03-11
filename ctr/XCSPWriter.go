@@ -2,6 +2,7 @@ package ctr
 
 import (
 	"os"
+	"sort"
 )
 
 // CreateXCSPInstance from given constraints
@@ -31,9 +32,14 @@ func writeVariables(file *os.File, variables map[string]string) {
 	if err != nil {
 		panic(err)
 	}
-	for v, dom := range variables {
+	var vars []string
+	for v := range variables {
+		vars = append(vars, v)
+	}
+	sort.Strings(vars)
+	for _, v := range vars {
 		values := "\t\t<var id=\"" + v + "\"> "
-		values += dom
+		values += variables[v]
 		values += " </var>\n"
 		_, err = file.WriteString(values)
 		if err != nil {

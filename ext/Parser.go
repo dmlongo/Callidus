@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ func ParseDecompFromFile(htPath string) (*decomp.Node, []*decomp.Node) {
 			res = reg.FindStringSubmatch(line)
 			edges := strings.Split(res[1], ", ")
 			variables := strings.Split(res[2], ", ")
+			sort.Strings(variables)
 			node := decomp.Node{ID: id, Lock: &sync.Mutex{}}
 			node.SetBag(variables)
 			node.SetCover(edges)
@@ -58,7 +60,7 @@ func ParseDecompFromFile(htPath string) (*decomp.Node, []*decomp.Node) {
 	}
 	var root *decomp.Node
 	for a := range nodes {
-		if nodes[a].Father == nil {
+		if nodes[a].Parent == nil {
 			root = nodes[a]
 			break
 		}
@@ -83,11 +85,12 @@ func ParseDecomp(htRaw *string) (*decomp.Node, []*decomp.Node) {
 			reg := regexp.MustCompile("Bag: {(.*)}.*")
 			res := reg.FindStringSubmatch(line)
 			variables := strings.Split(res[1], ", ")
+			sort.Strings(variables)
 			var nodeFather *decomp.Node = nil
 			if len(fathersQueue) > 0 {
 				nodeFather = fathersQueue[len(fathersQueue)-1]
 			}
-			node := decomp.Node{ID: idNodes, Father: nodeFather, Lock: &sync.Mutex{}}
+			node := decomp.Node{ID: idNodes, Parent: nodeFather, Lock: &sync.Mutex{}}
 			node.SetBag(variables)
 			if nodeFather != nil {
 				nodeFather.AddChild(&node)
@@ -109,7 +112,7 @@ func ParseDecomp(htRaw *string) (*decomp.Node, []*decomp.Node) {
 	}
 	var root *decomp.Node
 	for a := range nodes {
-		if nodes[a].Father == nil {
+		if nodes[a].Parent == nil {
 			root = nodes[a]
 			break
 		}

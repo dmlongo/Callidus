@@ -29,25 +29,70 @@ func YannakakisSeq(root *Node) *Node {
 	return root
 }
 
-func bottomUpSeq(curr *Node, joiningIndex *MyMap) {
-	for _, child := range curr.Children {
+func bottomUpSeq(parent *Node, joiningIndex *MyMap) {
+	for _, child := range parent.Children {
 		bottomUpSeq(child, joiningIndex)
 	}
-	if curr.Father != nil {
-		semiJoin(curr, curr.Father, joiningIndex)
+	if parent.Parent != nil {
+		semiJoin(parent.Parent, parent, joiningIndex)
 	}
 }
 
-func topDownSeq(actual *Node, joiningIndex *MyMap) {
-	for _, child := range actual.Children {
-		semiJoin(actual, child, joiningIndex)
+func topDownSeq(parent *Node, joiningIndex *MyMap) {
+	for _, child := range parent.Children {
+		semiJoin(child, parent, joiningIndex)
 		topDownSeq(child, joiningIndex)
+	}
+}
+
+func semiJoin(left *Node, right *Node, joiningIndex *MyMap) {
+	indexJoin := searchJoiningIndex(left, right, joiningIndex)
+
+	var tupToDel []int
+	for i, leftTup := range left.Tuples {
+		delete := true
+		for _, rightTup := range right.Tuples {
+			if match(leftTup, rightTup, indexJoin) {
+				delete = false
+				break
+			}
+		}
+		if delete {
+			tupToDel = append(tupToDel, i)
+		}
+	}
+
+	update(left, tupToDel)
+}
+
+func match(left []int, right []int, joinIndex [][]int) bool {
+	for _, z := range joinIndex {
+		if left[z[0]] != right[z[1]] {
+			return false
+		}
+	}
+	return true
+}
+
+func update(n *Node, toDel []int) { // TODO shouldn't this method be synchronized?
+	if len(toDel) > 0 {
+		newSize := len(n.Tuples) - len(toDel)
+		newTuples := make(Relation, 0, newSize)
+		if newSize > 0 { // TODO what does newSize == 0 mean? unsat?
+			i := 0
+			for _, j := range toDel {
+				newTuples = append(newTuples, n.Tuples[i:j]...)
+				i = j + 1
+			}
+			newTuples = append(newTuples, n.Tuples[i:]...)
+		}
+		n.Tuples = newTuples
 	}
 }
 
 // the left node performs the semi join on the right node and update the right's table
 //TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
-func semiJoin(left *Node, right *Node, joiningIndex *MyMap) {
+func semiJoinOld(left *Node, right *Node, joiningIndex *MyMap) {
 	indexJoin := searchJoiningIndex(left, right, joiningIndex)
 
 	trashRow := make([]bool, len(right.Tuples))
@@ -83,6 +128,28 @@ func delByIndex(index int, slice [][]int) [][]int {
 }
 
 func searchJoiningIndex(left *Node, right *Node, joiningIndex *MyMap) [][]int {
+	var joinIndices [][]int
+	joiningIndex.lock.RLock()
+	val, ok := joiningIndex.hash[IDJoiningIndex{x: left.ID, y: right.ID}]
+	joiningIndex.lock.RUnlock()
+	if ok {
+		joinIndices = val
+	} else {
+		var invJoinIndices [][]int
+		for iLeft, varLeft := range left.Bag {
+			if iRight := right.Position(varLeft); iRight >= 0 {
+				joinIndices = append(joinIndices, []int{iLeft, iRight})
+				invJoinIndices = append(invJoinIndices, []int{iRight, iLeft})
+			}
+		}
+		joiningIndex.lock.Lock()
+		joiningIndex.hash[IDJoiningIndex{x: right.ID, y: left.ID}] = invJoinIndices
+		joiningIndex.lock.Unlock()
+	}
+	return joinIndices
+}
+
+func searchJoiningIndexOld(left *Node, right *Node, joiningIndex *MyMap) [][]int {
 	indexJoin := make([][]int, 0)
 	joiningIndex.lock.RLock()
 	val, ok := joiningIndex.hash[IDJoiningIndex{x: left.ID, y: right.ID}]
@@ -138,6 +205,7 @@ func YannakakisPar(root *Node) *Node {
 	joiningIndex := &MyMap{}
 	joiningIndex.hash = make(map[IDJoiningIndex][][]int)
 	joiningIndex.lock = &sync.RWMutex{}
+
 	if len(root.Children) != 0 {
 		parallelBottomUp(root, joiningIndex)
 		parallelTopDown(root, joiningIndex)
@@ -159,10 +227,10 @@ func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
 		}
 	}
 	wg.Wait()
-	if actual.Father != nil {
-		actual.Father.Lock.Lock()
-		semiJoin(actual, actual.Father, joiningIndex)
-		actual.Father.Lock.Unlock()
+	if actual.Parent != nil {
+		actual.Parent.Lock.Lock()
+		semiJoin(actual, actual.Parent, joiningIndex)
+		actual.Parent.Lock.Unlock()
 	}
 }
 

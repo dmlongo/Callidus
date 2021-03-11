@@ -124,7 +124,7 @@ func main() {
 	if ySeq {
 		decomp.YannakakisSeq(root)
 	} else {
-		decomp.YannakakisPar(root)
+		decomp.YannakakisPar(root) // TODO not tested
 	}
 	fmt.Println("done in", time.Since(startYannakakis))
 	fmt.Println("Callidus solved", csp, "in", time.Since(start))
