@@ -18,14 +18,14 @@ type Node struct {
 	ID       int
 	Parent   *Node
 	Children []*Node
-	Bag      []string
-	Cover    []string
-	Tuples   Relation
 
+	bag      []string
 	bagSet   map[string]int
+	cover    []string
 	coverSet map[string]bool
 
-	Lock *sync.Mutex
+	Tuples Relation
+	Lock   *sync.Mutex
 }
 
 // AddChild to this node
@@ -36,11 +36,16 @@ func (n *Node) AddChild(child *Node) {
 
 // SetBag inits the bag of a node
 func (n *Node) SetBag(bag []string) {
-	n.Bag = bag
+	n.bag = bag
 	n.bagSet = make(map[string]int)
 	for i, v := range bag {
 		n.bagSet[v] = i
 	}
+}
+
+// Bag of a node
+func (n *Node) Bag() []string {
+	return n.bag
 }
 
 // Position of the variable v in the bag of a node
@@ -53,11 +58,16 @@ func (n *Node) Position(v string) int {
 
 // SetCover inits the edge cover of a node
 func (n *Node) SetCover(cover []string) {
-	n.Cover = cover
+	n.cover = cover
 	n.coverSet = make(map[string]bool)
 	for _, e := range cover {
 		n.coverSet[e] = true
 	}
+}
+
+// Cover of a node
+func (n *Node) Cover() []string {
+	return n.cover
 }
 
 // Complete a hypertree wrt a hypergraph
@@ -74,7 +84,7 @@ func (tree *Hypertree) coveredEdges() (map[string]bool, int) {
 	res := make(map[string]bool)
 	maxID := 0
 	for _, n := range *tree {
-		for _, e := range n.Cover {
+		for _, e := range n.cover {
 			res[e] = true
 		}
 		if n.ID > maxID {

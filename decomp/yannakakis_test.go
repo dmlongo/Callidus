@@ -1,6 +1,9 @@
 package decomp
 
-import "testing"
+import (
+	"sync"
+	"testing"
+)
 
 func TestSeq1(t *testing.T) {
 	input, output := test1Data()
@@ -64,19 +67,35 @@ func samePossibleValues(node1 *Node, node2 *Node) bool {
 
 func test1Data() (*Node, *Node) {
 	//creating input
-	dInput := &Node{ID: 1, Bag: []string{"Y", "P"}, Tuples: [][]int{{3, 8}, {3, 7}, {5, 7}, {6, 7}}}
-	rInput := &Node{ID: 2, Bag: []string{"Y", "Z", "U"}, Tuples: [][]int{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}}
-	sInput := &Node{ID: 3, Bag: []string{"Z", "U", "W"}, Tuples: [][]int{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}}
-	tInput := &Node{ID: 4, Bag: []string{"V", "Z"}, Tuples: [][]int{{9, 8}, {9, 3}, {9, 5}}}
+	dInput := &Node{ID: 1, Tuples: Relation{{3, 8}, {3, 7}, {5, 7}, {6, 7}}, Lock: &sync.Mutex{}}
+	dInput.SetBag([]string{"Y", "P"})
+
+	rInput := &Node{ID: 2, Tuples: Relation{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}, Lock: &sync.Mutex{}}
+	rInput.SetBag([]string{"Y", "Z", "U"})
+
+	sInput := &Node{ID: 3, Tuples: Relation{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}, Lock: &sync.Mutex{}}
+	sInput.SetBag([]string{"Z", "U", "W"})
+
+	tInput := &Node{ID: 4, Tuples: Relation{{9, 8}, {9, 3}, {9, 5}}, Lock: &sync.Mutex{}}
+	tInput.SetBag([]string{"V", "Z"})
+
 	dInput.AddChild(rInput)
 	rInput.AddChild(sInput)
 	rInput.AddChild(tInput)
 
 	//creating output
-	dOutput := &Node{ID: 1, Bag: []string{"Y", "P"}, Tuples: [][]int{{3, 8}, {3, 7}}}
-	rOutput := &Node{ID: 2, Bag: []string{"Y", "Z", "U"}, Tuples: [][]int{{3, 8, 9}, {3, 8, 3}}}
-	sOutput := &Node{ID: 3, Bag: []string{"Z", "U", "W"}, Tuples: [][]int{{8, 3, 8}, {8, 9, 4}}}
-	tOutput := &Node{ID: 4, Bag: []string{"V", "Z"}, Tuples: [][]int{{9, 8}}}
+	dOutput := &Node{ID: 1, Tuples: Relation{{3, 8}, {3, 7}}}
+	dOutput.SetBag([]string{"Y", "P"})
+
+	rOutput := &Node{ID: 2, Tuples: Relation{{3, 8, 9}, {3, 8, 3}}}
+	rOutput.SetBag([]string{"Y", "Z", "U"})
+
+	sOutput := &Node{ID: 3, Tuples: Relation{{8, 3, 8}, {8, 9, 4}}}
+	sOutput.SetBag([]string{"Z", "U", "W"})
+
+	tOutput := &Node{ID: 4, Tuples: Relation{{9, 8}}}
+	tOutput.SetBag([]string{"V", "Z"})
+
 	dOutput.AddChild(rOutput)
 	rOutput.AddChild(sOutput)
 	rOutput.AddChild(tOutput)
@@ -86,12 +105,24 @@ func test1Data() (*Node, *Node) {
 
 func test2Data() (*Node, *Node) {
 	//creating input
-	dInput := &Node{ID: 1, Bag: []string{"Y", "P"}, Tuples: [][]int{{3, 8}, {3, 7}, {5, 7}, {6, 7}}}
-	rInput := &Node{ID: 2, Bag: []string{"Y", "Z", "U"}, Tuples: [][]int{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}}
-	aInput := &Node{ID: 5, Bag: []string{"P", "C"}, Tuples: [][]int{{8, 4}, {8, 7}, {4, 9}, {3, 5}}}
-	sInput := &Node{ID: 3, Bag: []string{"Z", "U", "W"}, Tuples: [][]int{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}}
-	tInput := &Node{ID: 4, Bag: []string{"V", "Z"}, Tuples: [][]int{{9, 8}, {9, 3}, {9, 5}}}
-	bInput := &Node{ID: 6, Bag: []string{"C", "A"}, Tuples: [][]int{{4, 1}, {3, 2}, {5, 4}}}
+	dInput := &Node{ID: 1, Tuples: Relation{{3, 8}, {3, 7}, {5, 7}, {6, 7}}, Lock: &sync.Mutex{}}
+	dInput.SetBag([]string{"Y", "P"})
+
+	rInput := &Node{ID: 2, Tuples: Relation{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}, Lock: &sync.Mutex{}}
+	rInput.SetBag([]string{"Y", "Z", "U"})
+
+	aInput := &Node{ID: 5, Tuples: Relation{{8, 4}, {8, 7}, {4, 9}, {3, 5}}, Lock: &sync.Mutex{}}
+	aInput.SetBag([]string{"P", "C"})
+
+	sInput := &Node{ID: 3, Tuples: Relation{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}, Lock: &sync.Mutex{}}
+	sInput.SetBag([]string{"Z", "U", "W"})
+
+	tInput := &Node{ID: 4, Tuples: Relation{{9, 8}, {9, 3}, {9, 5}}, Lock: &sync.Mutex{}}
+	tInput.SetBag([]string{"V", "Z"})
+
+	bInput := &Node{ID: 6, Tuples: Relation{{4, 1}, {3, 2}, {5, 4}}, Lock: &sync.Mutex{}}
+	bInput.SetBag([]string{"C", "A"})
+
 	dInput.AddChild(rInput)
 	dInput.AddChild(aInput)
 	rInput.AddChild(sInput)
@@ -99,12 +130,24 @@ func test2Data() (*Node, *Node) {
 	aInput.AddChild(bInput)
 
 	//creating output
-	dOutput := &Node{ID: 1, Bag: []string{"Y", "P"}, Tuples: [][]int{{3, 8}}}
-	rOutput := &Node{ID: 2, Bag: []string{"Y", "Z", "U"}, Tuples: [][]int{{3, 8, 9}, {3, 8, 3}}}
-	aOutput := &Node{ID: 5, Bag: []string{"P", "C"}, Tuples: [][]int{{8, 4}}}
-	sOutput := &Node{ID: 3, Bag: []string{"Z", "U", "W"}, Tuples: [][]int{{8, 3, 8}, {8, 9, 4}}}
-	tOutput := &Node{ID: 4, Bag: []string{"V", "Z"}, Tuples: [][]int{{9, 8}}}
-	bOutput := &Node{ID: 6, Bag: []string{"C", "A"}, Tuples: [][]int{{4, 1}}}
+	dOutput := &Node{ID: 1, Tuples: Relation{{3, 8}}}
+	dOutput.SetBag([]string{"Y", "P"})
+
+	rOutput := &Node{ID: 2, Tuples: Relation{{3, 8, 9}, {3, 8, 3}}}
+	rOutput.SetBag([]string{"Y", "Z", "U"})
+
+	aOutput := &Node{ID: 5, Tuples: Relation{{8, 4}}}
+	aOutput.SetBag([]string{"P", "C"})
+
+	sOutput := &Node{ID: 3, Tuples: Relation{{8, 3, 8}, {8, 9, 4}}}
+	sOutput.SetBag([]string{"Z", "U", "W"})
+
+	tOutput := &Node{ID: 4, Tuples: Relation{{9, 8}}}
+	tOutput.SetBag([]string{"V", "Z"})
+
+	bOutput := &Node{ID: 6, Tuples: Relation{{4, 1}}}
+	bOutput.SetBag([]string{"C", "A"})
+
 	dOutput.AddChild(rOutput)
 	dOutput.AddChild(aOutput)
 	rOutput.AddChild(sOutput)

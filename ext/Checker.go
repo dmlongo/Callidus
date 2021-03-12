@@ -8,7 +8,7 @@ import (
 )
 
 // CheckSolution of a CSP
-func CheckSolution(csp string, solution map[string]int) (string, bool) {
+func CheckSolution(csp string, solution ctr.Solution) (string, bool) {
 	xcspSol := ctr.WriteSolution(solution)
 	out, err := exec.Command("java", "-cp", "libs/xcsp3-tools-1.2.3.jar", "org.xcsp.parser.callbacks.SolutionChecker", csp, xcspSol).Output()
 	if err != nil {

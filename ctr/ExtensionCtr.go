@@ -18,10 +18,9 @@ func (c *ExtensionCtr) Name() string {
 
 // Variables of this constraint
 func (c *ExtensionCtr) Variables() []string {
-	if c.strVars != nil { // TODO is this nil or a zero value?
+	if c.strVars != nil {
 		return c.strVars
 	}
-	c.strVars = make([]string, 0)
 	for _, v := range strings.Split(c.Vars, " ") {
 		c.strVars = append(c.strVars, v)
 	}

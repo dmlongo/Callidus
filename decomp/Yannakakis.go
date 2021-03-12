@@ -1,9 +1,14 @@
 package decomp
 
 import (
+	"fmt"
 	"sync"
+	"time"
+
+	"github.com/dmlongo/callidus/ctr"
 )
 
+/*
 // IDJoiningIndex is.. I still don't know
 type IDJoiningIndex struct {
 	x int
@@ -16,43 +21,92 @@ type MyMap struct {
 	lock *sync.RWMutex
 }
 
-// YannakakisSeq performs the sequential Yannakakis' algorithm
-func YannakakisSeq(root *Node) *Node {
-	joiningIndex := &MyMap{}
+var joiningIndex *MyMap
+
+func init() {
+	joiningIndex = &MyMap{}
 	joiningIndex.hash = make(map[IDJoiningIndex][][]int)
 	joiningIndex.lock = &sync.RWMutex{}
+}
+*/
 
+// YannakakisSeq performs the sequential Yannakakis' algorithm
+func YannakakisSeq(root *Node) *Node {
 	if len(root.Children) != 0 {
-		bottomUpSeq(root, joiningIndex)
-		topDownSeq(root, joiningIndex)
+		bottomUpSeq(root)
+		topDownSeq(root)
 	}
 	return root
 }
 
-func bottomUpSeq(parent *Node, joiningIndex *MyMap) {
-	for _, child := range parent.Children {
-		bottomUpSeq(child, joiningIndex)
+func bottomUpSeq(curr *Node) {
+	for _, child := range curr.Children {
+		bottomUpSeq(child)
 	}
-	if parent.Parent != nil {
-		semiJoin(parent.Parent, parent, joiningIndex)
-	}
-}
-
-func topDownSeq(parent *Node, joiningIndex *MyMap) {
-	for _, child := range parent.Children {
-		semiJoin(child, parent, joiningIndex)
-		topDownSeq(child, joiningIndex)
+	if curr.Parent != nil {
+		semiJoin(curr.Parent, curr)
 	}
 }
 
-func semiJoin(left *Node, right *Node, joiningIndex *MyMap) {
-	indexJoin := searchJoiningIndex(left, right, joiningIndex)
+func topDownSeq(curr *Node) {
+	for _, child := range curr.Children {
+		semiJoin(child, curr)
+		topDownSeq(child)
+	}
+}
+
+// YannakakisPar performs the parrallel Yannakakis' algorithm
+func YannakakisPar(root *Node) *Node {
+	if len(root.Children) != 0 {
+		bottomUpPar(root)
+		topDownPar(root)
+	}
+	return root
+}
+
+func bottomUpPar(curr *Node) {
+	var wg *sync.WaitGroup = &sync.WaitGroup{}
+	for _, child := range curr.Children {
+		if len(child.Children) != 0 && len(curr.Children) > 1 {
+			wg.Add(1)
+			go func(c *Node) {
+				bottomUpPar(c)
+				wg.Done()
+			}(child)
+		} else {
+			bottomUpPar(child)
+		}
+	}
+	wg.Wait()
+	if curr.Parent != nil {
+		curr.Parent.Lock.Lock()
+		semiJoin(curr.Parent, curr)
+		curr.Parent.Lock.Unlock()
+	}
+}
+
+func topDownPar(curr *Node) {
+	var wg *sync.WaitGroup = &sync.WaitGroup{}
+	wg.Add(len(curr.Children))
+	for _, child := range curr.Children {
+		semiJoin(child, curr)
+		go func(c *Node) {
+			topDownPar(c)
+			wg.Done()
+		}(child)
+
+	}
+	wg.Wait()
+}
+
+func semiJoin(left *Node, right *Node) {
+	joinIdx := findJoinIndices(left, right)
 
 	var tupToDel []int
 	for i, leftTup := range left.Tuples {
 		delete := true
 		for _, rightTup := range right.Tuples {
-			if match(leftTup, rightTup, indexJoin) {
+			if match(leftTup, rightTup, joinIdx) {
 				delete = false
 				break
 			}
@@ -90,44 +144,18 @@ func update(n *Node, toDel []int) { // TODO shouldn't this method be synchronize
 	}
 }
 
-// the left node performs the semi join on the right node and update the right's table
-//TODO: potremmo cercare una correlazione nell'ordine in cui i semi-joins vengono effetuati
-func semiJoinOld(left *Node, right *Node, joiningIndex *MyMap) {
-	indexJoin := searchJoiningIndex(left, right, joiningIndex)
-
-	trashRow := make([]bool, len(right.Tuples))
-	for index, valuesRight := range right.Tuples {
-		for _, valuesLeft := range left.Tuples {
-			tupleMatch := true
-			for _, rowIndex := range indexJoin {
-				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
-					tupleMatch = false
-					break
-				}
-			}
-			if tupleMatch {
-				trashRow[index] = true
-				break
-			}
+func findJoinIndices(left *Node, right *Node) [][]int {
+	var out [][]int
+	for iLeft, varLeft := range left.Bag() {
+		if iRight := right.Position(varLeft); iRight >= 0 {
+			out = append(out, []int{iLeft, iRight})
 		}
 	}
-	for i := len(trashRow) - 1; i >= 0; i-- {
-		if !trashRow[i] {
-			right.Tuples = delByIndex(i, right.Tuples)
-		}
-	}
+	return out
 }
 
-func delByIndex(index int, slice [][]int) [][]int {
-	if index+1 >= len(slice) {
-		slice = slice[:index]
-	} else {
-		slice = append(slice[:index], slice[index+1:]...)
-	}
-	return slice
-}
-
-func searchJoiningIndex(left *Node, right *Node, joiningIndex *MyMap) [][]int {
+/*
+func searchJoiningIndex(left *Node, right *Node) [][]int {
 	var joinIndices [][]int
 	joiningIndex.lock.RLock()
 	val, ok := joiningIndex.hash[IDJoiningIndex{x: left.ID, y: right.ID}]
@@ -136,7 +164,7 @@ func searchJoiningIndex(left *Node, right *Node, joiningIndex *MyMap) [][]int {
 		joinIndices = val
 	} else {
 		var invJoinIndices [][]int
-		for iLeft, varLeft := range left.Bag {
+		for iLeft, varLeft := range left.Bag() {
 			if iRight := right.Position(varLeft); iRight >= 0 {
 				joinIndices = append(joinIndices, []int{iLeft, iRight})
 				invJoinIndices = append(invJoinIndices, []int{iRight, iLeft})
@@ -148,210 +176,71 @@ func searchJoiningIndex(left *Node, right *Node, joiningIndex *MyMap) [][]int {
 	}
 	return joinIndices
 }
-
-func searchJoiningIndexOld(left *Node, right *Node, joiningIndex *MyMap) [][]int {
-	indexJoin := make([][]int, 0)
-	joiningIndex.lock.RLock()
-	val, ok := joiningIndex.hash[IDJoiningIndex{x: left.ID, y: right.ID}]
-	joiningIndex.lock.RUnlock()
-	if ok {
-		indexJoin = val
-	} else {
-		invertedIndex := make([][]int, 0)
-		for iLeft, varLeft := range left.Bag {
-			for iRight, varRight := range right.Bag {
-				if varLeft == varRight {
-					invertedIndex = append(invertedIndex, []int{iRight, iLeft})
-					indexJoin = append(indexJoin, []int{iLeft, iRight})
-					break
-				}
-			}
-		}
-		joiningIndex.lock.Lock()
-		joiningIndex.hash[IDJoiningIndex{x: right.ID, y: left.ID}] = invertedIndex
-		joiningIndex.lock.Unlock()
-	}
-	return indexJoin
-}
-
-/*
-func semiJoinInMemory(left *Node, right *Node, indexJoin [][]int) {
-	trashRow := make([]bool, len(right.Tuples))
-	for index, valuesRight := range right.Tuples {
-		for _, valuesLeft := range left.Tuples {
-			tupleMatch := true
-			for _, rowIndex := range indexJoin {
-				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
-					tupleMatch = false
-					break
-				}
-			}
-			if tupleMatch {
-				trashRow[index] = true
-				break
-			}
-		}
-	}
-	for i := len(trashRow) - 1; i >= 0; i-- {
-		if !trashRow[i] {
-			right.Tuples = delByIndex(i, right.Tuples)
-		}
-	}
-}
 */
 
-// YannakakisPar performs the parrallel Yannakakis' algorithm
-func YannakakisPar(root *Node) *Node {
-	joiningIndex := &MyMap{}
-	joiningIndex.hash = make(map[IDJoiningIndex][][]int)
-	joiningIndex.lock = &sync.RWMutex{}
+// ComputeAllSolutions from fully reduced relations
+func ComputeAllSolutions(root *Node) []ctr.Solution {
+	vars, rel := computeBottomUp(root)
 
-	if len(root.Children) != 0 {
-		parallelBottomUp(root, joiningIndex)
-		parallelTopDown(root, joiningIndex)
+	fmt.Print("(Conversion from Relation to Solution... ")
+	startConversion := time.Now()
+	var allSolutions []ctr.Solution
+	for _, tup := range rel {
+		sol := make(ctr.Solution)
+		for i, v := range vars {
+			sol[v] = tup[i]
+		}
+		allSolutions = append(allSolutions, sol)
 	}
-	return root
+	fmt.Print("done in ", time.Since(startConversion), ") ")
+	return allSolutions
 }
 
-func parallelBottomUp(actual *Node, joiningIndex *MyMap) {
-	var wg *sync.WaitGroup = &sync.WaitGroup{}
-	for _, son := range actual.Children {
-		if len(son.Children) != 0 && len(actual.Children) > 1 {
-			wg.Add(1)
-			go func(s *Node) {
-				parallelBottomUp(s, joiningIndex)
-				wg.Done()
-			}(son)
-		} else {
-			parallelBottomUp(son, joiningIndex)
-		}
+func computeBottomUp(curr *Node) ([]string, Relation) {
+	for _, child := range curr.Children {
+		childBag, childTuples := computeBottomUp(child)
+		child.SetBag(childBag)
+		child.Tuples = childTuples
+
+		currBag, currTuples := join(curr, child)
+		curr.SetBag(currBag)
+		curr.Tuples = currTuples
 	}
-	wg.Wait()
-	if actual.Parent != nil {
-		actual.Parent.Lock.Lock()
-		semiJoin(actual, actual.Parent, joiningIndex)
-		actual.Parent.Lock.Unlock()
-	}
+	return curr.bag, curr.Tuples
 }
 
-func parallelTopDown(actual *Node, joiningIndex *MyMap) {
-	var wg *sync.WaitGroup = &sync.WaitGroup{}
-	wg.Add(len(actual.Children))
-	for _, son := range actual.Children {
-		semiJoin(actual, son, joiningIndex)
-		go func(s *Node) {
-			parallelTopDown(s, joiningIndex)
-			wg.Done()
-		}(son)
-
-	}
-	wg.Wait()
-}
-
-/*
-func semiJoinOnFile(left *Node, right *Node, indexJoin [][]int, folder string) {
-
-	fileRight, rRight := OpenNodeFile(right.ID, folder)
-	fileLeft, rLeft := OpenNodeFile(left.ID, folder)
-	possibleValuesLeft := make([][]int, 0)
-	for rLeft.Scan() {
-		valuesLeft := GetValues(rLeft.Text(), len(left.Bag))
-		if valuesLeft == nil {
-			break
-		}
-		if valuesLeft[0] == -1 {
-			return
-		}
-		possibleValuesLeft = append(possibleValuesLeft, valuesLeft)
-	}
-	fileLeft.Close()
-
-	possibleValues := make([][]int, 0)
-
-	for rRight.Scan() {
-		valuesRight := GetValues(rRight.Text(), len(right.Bag))
-		if valuesRight == nil {
-			break
-		}
-		if valuesRight[0] == -1 {
-			return
-		}
-
-		for _, valuesLeft := range possibleValuesLeft {
-			tupleMatch := true
-			for _, rowIndex := range indexJoin {
-				if valuesLeft[rowIndex[0]] != valuesRight[rowIndex[1]] {
-					tupleMatch = false
-					break
-				}
-			}
-			if tupleMatch {
-				possibleValues = append(possibleValues, valuesRight)
-				break
+func join(left *Node, right *Node) (outVars []string, outRel Relation) {
+	outVars = newBag(left.bag, left.bagSet, right.bag)
+	joinIdx := findJoinIndices(left, right)
+	for _, lTup := range left.Tuples {
+		for _, rTup := range right.Tuples {
+			if match(lTup, rTup, joinIdx) {
+				outTup := newTuple(outVars, lTup, rTup, right.bagSet)
+				outRel = append(outRel, outTup)
 			}
 		}
 	}
 
-	fileRight.Close()
+	return
+}
 
-	fileRight, err := os.OpenFile("tables-"+folder+strconv.Itoa(right.ID)+".table", os.O_TRUNC|os.O_WRONLY, 0777)
-	if err != nil {
-		panic(err)
-	}
-
-	if len(possibleValues) == 0 {
-		fileRight.WriteString("-1")
-	} else {
-		for _, row := range possibleValues {
-			for i, val := range row {
-				if i == len(row)-1 {
-					fileRight.WriteString(strconv.Itoa(val))
-				} else {
-					fileRight.WriteString(strconv.Itoa(val) + " ")
-				}
-
-			}
-			fileRight.WriteString("\n")
+func newBag(bagL []string, bagSetL map[string]int, bagR []string) []string {
+	var out []string
+	out = append(out, bagL...)
+	for _, v := range bagR {
+		if _, ok := bagSetL[v]; !ok {
+			out = append(out, v)
 		}
 	}
-
-	fileRight.Close()
+	return out
 }
-*/
 
-/*
-func OpenNodeFile(id int, folder string) (*os.File, *bufio.Scanner) {
-	fi, err := os.Open("tables-" + folder + strconv.Itoa(id) + ".table")
-	if err != nil {
-		panic(err)
+func newTuple(vars []string, lTup []int, rTup []int, rBagSet map[string]int) []int {
+	out := make([]int, 0, len(vars))
+	out = append(out, lTup...)
+	for _, v := range vars[len(lTup):] {
+		i := rBagSet[v]
+		out = append(out, rTup[i])
 	}
-	err = fi.Chmod(0777)
-	if err != nil {
-		panic(err)
-	}
-	return fi, bufio.NewScanner(fi)
+	return out
 }
-*/
-
-/*
-func GetValues(line string, numVariables int) []int {
-	reg := regexp.MustCompile("(.*)")
-	valuesString := reg.FindStringSubmatch(line)[1]
-	if valuesString == "" {
-		return nil
-	}
-	if valuesString == "-1" {
-		return []int{-1}
-	}
-	values := make([]int, numVariables)
-	for i, value := range strings.Split(valuesString, " ") {
-		v, err := strconv.Atoi(value)
-		if err != nil {
-			panic(err)
-		}
-		values[i] = v
-
-	}
-	return values
-}
-*/

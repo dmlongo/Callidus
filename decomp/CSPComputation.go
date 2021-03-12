@@ -34,7 +34,7 @@ func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[st
 
 func solveCSPSeq(cspFile string, node *Node) bool {
 	cmd := exec.Command("./libs/nacre", cspFile, "-complete", "-sols", "-verb=3")
-	out, err := cmd.StdoutPipe() // TODO why StdoutPipe() and not just Run?
+	out, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
 	}
@@ -48,7 +48,6 @@ func solveCSPSeq(cspFile string, node *Node) bool {
 
 func readTuples(reader *bufio.Reader, node *Node) bool {
 	solFound := false
-	node.Tuples = make(Relation, 0)
 	for {
 		line, err := reader.ReadString('\n')
 		if err == io.EOF && len(line) == 0 {
@@ -56,7 +55,7 @@ func readTuples(reader *bufio.Reader, node *Node) bool {
 		}
 		if strings.HasPrefix(line, "v") {
 			reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-			tup := make([]int, len(node.Bag))
+			tup := make([]int, len(node.Bag()))
 			for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
 				v, err := strconv.Atoi(value)
 				if err != nil {
@@ -132,9 +131,9 @@ func solveCSPPar(cspFile string, node *Node, wg *sync.WaitGroup, satChan chan bo
 }
 
 func filterCtrsVars(n *Node, ctrs map[string]ctr.Constraint, doms map[string]string) ([]ctr.Constraint, map[string]string) {
-	outCtrs := make([]ctr.Constraint, 0, len(n.Cover))
+	outCtrs := make([]ctr.Constraint, 0, len(n.Cover()))
 	outVars := make(map[string]string)
-	for _, e := range n.Cover {
+	for _, e := range n.Cover() {
 		c := ctrs[e]
 		outCtrs = append(outCtrs, c)
 		for _, v := range c.Variables() {

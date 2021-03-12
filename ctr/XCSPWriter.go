@@ -76,12 +76,8 @@ func writeConstraints(file *os.File, constraints []Constraint) {
 }
 
 // WriteSolution in XCSP format
-func WriteSolution(sol map[string]int) string {
-	vars := make([]string, 0, len(sol))
-	for v := range sol {
-		vars = append(vars, v)
-	}
-	sort.Strings(vars)
+func WriteSolution(sol Solution) string {
+	vars := sol.sortVars()
 	// TODO convert many-vars to array
 
 	var sb strings.Builder

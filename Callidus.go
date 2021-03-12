@@ -49,39 +49,26 @@ func main() {
 		fmt.Println("done in", time.Since(startDecomposition))
 	}
 
-	//var wg sync.WaitGroup // TODO remove
-	//wg.Add(3)
-
 	fmt.Print("Parsing hypertree, domains and constraints... ")
 	startPrep := time.Now()
+
 	var tree decomp.Hypertree
 	var root *decomp.Node
-	//go func() {
 	if ht != "" || htDebug {
 		root, tree = ext.ParseDecompFromFile(ht)
 	} else {
 		root, tree = ext.ParseDecomp(&rawHypertree)
 	}
 	tree.Complete(hypergraph)
-	//	wg.Done()
-	//}()
-	//fmt.Println(root)
 
 	var domains map[string]string
-	//go func() {
 	domFile := baseDir + cspName + ".dom"
 	domains = ext.ParseDomains(domFile)
-	//	wg.Done()
-	//}()
 
 	var constraints map[string]ctr.Constraint
-	//go func() {
 	ctrFile := baseDir + cspName + ".ctr"
 	constraints = ext.ParseConstraints(ctrFile)
-	//	wg.Done()
-	//}()
 
-	//wg.Wait()
 	fmt.Println("done in", time.Since(startPrep))
 
 	//go func() {
@@ -124,18 +111,18 @@ func main() {
 	if ySeq {
 		decomp.YannakakisSeq(root)
 	} else {
-		decomp.YannakakisPar(root) // TODO not tested
+		decomp.YannakakisPar(root)
 	}
 	fmt.Println("done in", time.Since(startYannakakis))
 	fmt.Println("Callidus solved", csp, "in", time.Since(start))
 
-	finalResult := make([]map[string]int, 0)
-	startSearchResult := time.Now()
-	searchResults(root, &finalResult)
-	fmt.Println("Search results ended in", time.Since(startSearchResult))
+	fmt.Print("Computing all solutions... ")
+	startComputeAll := time.Now()
+	allSolutions := decomp.ComputeAllSolutions(root)
+	fmt.Println("done in", time.Since(startComputeAll))
 
 	if solDebug {
-		for _, sol := range finalResult {
+		for _, sol := range allSolutions {
 			if err, ok := ext.CheckSolution(csp, sol); !ok {
 				panic(err)
 				//panic(fmt.Sprintf("%v is not a solution.", sol))
@@ -143,9 +130,21 @@ func main() {
 		}
 	}
 
+	startPrinting := time.Now()
 	if printSol {
-		printSolution(finalResult)
+		if len(allSolutions) > 0 {
+			if out == "" {
+				for _, sol := range allSolutions {
+					sol.Print()
+				}
+			} else {
+				// TODO write to out
+			}
+		} else {
+			fmt.Println(csp, " has no solutions")
+		}
 	}
+	fmt.Println("Printing done in", time.Since(startPrinting))
 
 	if !subDebug {
 		err := os.RemoveAll(baseDir)
@@ -222,179 +221,4 @@ func setFlags() {
 	//fmt.Printf("csp=%v\nht=%v\nout=%v\n", csp, ht, out)
 
 	contSols = 0
-}
-
-func printSolution(result []map[string]int) {
-	if len(result) > 0 {
-		if out == "" {
-			for indexResult, res := range result {
-				fmt.Print("Sol " + strconv.Itoa(indexResult+1) + "\n")
-				for key, value := range res {
-					fmt.Print(key + " -> " + strconv.Itoa(value) + "\n")
-				}
-			}
-			fmt.Print("Solutions found: " + strconv.Itoa(len(result)) + "\n")
-		} else {
-			err := os.RemoveAll(out)
-			if err != nil {
-				panic(err)
-			}
-			file, err := os.OpenFile(out, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
-			if err != nil {
-				panic(err)
-			}
-			for indexResult, res := range result {
-				_, err = file.WriteString("Sol " + strconv.Itoa(indexResult+1) + "\n")
-				if err != nil {
-					panic(err)
-				}
-				for key, value := range res {
-					_, err = file.WriteString(key + " -> " + strconv.Itoa(value) + "\n")
-					if err != nil {
-						panic(err)
-					}
-				}
-			}
-			_, err = file.WriteString("Solutions found: " + strconv.Itoa(len(result)))
-			if err != nil {
-				panic(err)
-			}
-		}
-	} else {
-		fmt.Println("NO SOLUTIONS")
-	}
-}
-
-func searchResults(curr *decomp.Node, finalResults *[]map[string]int) {
-	joinVariables := make(map[string]int, 0)
-	if curr.Parent != nil {
-		for _, varFather := range curr.Parent.Bag {
-			for index, varCurr := range curr.Bag {
-				if varCurr == varFather {
-					joinVariables[varCurr] = index
-					break
-				}
-			}
-		}
-	}
-
-	addNewResults := false
-	newResults := make([]map[string]int, 0)
-
-	//if subInMem {
-	addNewResults, newResults = searchNewResultsInMemory(curr, &joinVariables, finalResults)
-	/*} else {
-		addNewResults, newResults = searchNewResultsOnFile(curr, &joinVariables, finalResults)
-		if newResults == nil {
-			*finalResults = nil
-			return
-		}
-	}*/
-
-	if addNewResults {
-		for _, singleNewResult := range newResults {
-			*finalResults = append(*finalResults, singleNewResult)
-		}
-	}
-
-	fmt.Println(len(*finalResults))
-
-	for _, son := range curr.Children {
-		searchResults(son, finalResults)
-	}
-
-}
-
-func searchNewResultsInMemory(actual *decomp.Node, joinVariables *map[string]int, finalResults *[]map[string]int) (bool, []map[string]int) {
-	joinDoneCount := make(map[string]int)
-	newResults := make([]map[string]int, 0)
-	addNewResults := false
-
-	for _, singleNodeSolution := range actual.Tuples {
-		computationNewResults(actual, singleNodeSolution, joinVariables, &joinDoneCount, finalResults, &addNewResults, &newResults)
-	}
-
-	return addNewResults, newResults
-}
-
-/*
-func searchNewResultsOnFile(actual *decomp.Node, joinVariables *map[string]int, finalResults *[]map[string]int) (bool, []map[string]int) {
-	joinDoneCount := make(map[string]int)
-	newResults := make([]map[string]int, 0)
-	addNewResults := false
-
-	fileActual, rActual := decomp.OpenNodeFile(actual.ID, cspDir)
-	for rActual.Scan() {
-		singleNodeSolution := decomp.GetValues(rActual.Text(), len(actual.Bag))
-		if singleNodeSolution == nil {
-			break
-		}
-		if singleNodeSolution[0] == -1 {
-			return false, nil
-		}
-		computationNewResults(actual, singleNodeSolution, joinVariables, &joinDoneCount, finalResults, &addNewResults, &newResults)
-	}
-
-	fileActual.Close()
-
-	return addNewResults, newResults
-}
-*/
-
-func computationNewResults(actual *decomp.Node, singleNodeSolution []int, joinVariables *map[string]int, joinDoneCount *map[string]int, finalResults *[]map[string]int, addNewResults *bool, newResults *[]map[string]int) {
-	if singleNodeSolution == nil {
-		return
-	}
-
-	keyJoin := ""
-	for index, value := range singleNodeSolution {
-		_, isVariableJoin := (*joinVariables)[actual.Bag[index]]
-		if isVariableJoin {
-			keyJoin += strconv.Itoa(value)
-		}
-	}
-	_, alreadyInMap := (*joinDoneCount)[keyJoin]
-	if alreadyInMap {
-		(*joinDoneCount)[keyJoin]++
-	} else {
-		(*joinDoneCount)[keyJoin] = 1
-	}
-
-	if len(*joinVariables) >= 1 {
-		for _, singleFinalResult := range *finalResults {
-			joinOk := true
-			for joinKey, joinIndex := range *joinVariables {
-				if singleFinalResult[joinKey] != singleNodeSolution[joinIndex] {
-					joinOk = false
-					break
-				}
-			}
-			if joinOk {
-
-				if (*joinDoneCount)[keyJoin] == 1 {
-					for index, value := range singleNodeSolution {
-						singleFinalResult[actual.Bag[index]] = value
-					}
-				} else {
-					*addNewResults = true
-					copyRes := make(map[string]int, 0)
-					for key, val := range singleFinalResult {
-						copyRes[key] = val
-					}
-
-					for index, value := range singleNodeSolution {
-						copyRes[actual.Bag[index]] = value
-					}
-					*newResults = append(*newResults, copyRes)
-				}
-
-			}
-		}
-	} else {
-		resTemp := make(map[string]int)
-		for index, value := range singleNodeSolution {
-			resTemp[actual.Bag[index]] = value
-		}
-		*finalResults = append(*finalResults, resTemp)
-	}
 }

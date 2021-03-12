@@ -2,7 +2,6 @@ package ext
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"regexp"
 	"sort"
@@ -143,7 +142,7 @@ func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
 			tuples := scanner.Text()
 			constr = &ctr.ExtensionCtr{CName: name, Vars: vars, CType: ctype, Tuples: tuples}
 		default:
-			fmt.Println(line + " not implemented yet")
+			panic(line + " not implemented yet")
 		}
 		constraints[name] = constr
 	}
