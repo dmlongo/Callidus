@@ -141,6 +141,44 @@ func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
 			scanner.Scan()
 			tuples := scanner.Text()
 			constr = &ctr.ExtensionCtr{CName: name, Vars: vars, CType: ctype, Tuples: tuples}
+		case "PrimitiveCtr":
+			scanner.Scan()
+			name = scanner.Text()
+			scanner.Scan()
+			vars := scanner.Text()
+			scanner.Scan()
+			f := scanner.Text()
+			constr = &ctr.PrimitiveCtr{CName: name, Vars: vars, Function: f}
+		case "AllDifferentCtr":
+			scanner.Scan()
+			name = scanner.Text()
+			scanner.Scan()
+			vars := scanner.Text()
+			constr = &ctr.AllDifferentCtr{CName: name, Vars: vars}
+		case "ElementCtr":
+			scanner.Scan()
+			name = scanner.Text()
+			scanner.Scan()
+			vars := scanner.Text()
+			scanner.Scan()
+			startIndex := scanner.Text()
+			scanner.Scan()
+			index := scanner.Text()
+			scanner.Scan()
+			rank := scanner.Text()
+			scanner.Scan()
+			condition := scanner.Text()
+			constr = &ctr.ElementCtr{CName: name, Vars: vars, StartIndex: startIndex, Index: index, Rank: rank, Condition: condition}
+		case "SumCtr":
+			scanner.Scan()
+			name = scanner.Text()
+			scanner.Scan()
+			vars := scanner.Text()
+			scanner.Scan()
+			coeffs := scanner.Text()
+			scanner.Scan()
+			condition := scanner.Text()
+			constr = &ctr.SumCtr{CName: name, Vars: vars, Coeffs: coeffs, Condition: condition}
 		default:
 			panic(line + " not implemented yet")
 		}
