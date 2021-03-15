@@ -2,6 +2,7 @@ package ctr
 
 import (
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -78,12 +79,12 @@ func writeConstraints(file *os.File, constraints []Constraint) {
 // WriteSolution in XCSP format
 func WriteSolution(sol Solution) string {
 	vars := sol.sortVars()
-	// TODO convert many-vars to array
+	varList := makeVarList(vars)
 
 	var sb strings.Builder
 	sb.WriteString("<instantiation>\n")
 	sb.WriteString("\t<list> ")
-	for _, v := range vars {
+	for _, v := range varList {
 		sb.WriteString(v)
 		sb.WriteString(" ")
 	}
@@ -97,4 +98,30 @@ func WriteSolution(sol Solution) string {
 	sb.WriteString("</values>\n")
 	sb.WriteString("</instantiation>\n")
 	return sb.String()
+}
+
+func makeVarList(sortedVars []string) []string {
+	var list []string
+	var arrayID = regexp.MustCompile(`^((\w)+?)((L\d+J)+)$`)
+	var indices = regexp.MustCompile(`L\d+J`)
+
+	var sb strings.Builder
+	for _, v := range sortedVars {
+		if arrayID.MatchString(v) {
+			tks := arrayID.FindStringSubmatch(v)
+			name := tks[1]
+			if list == nil || !strings.HasPrefix(list[len(list)-1], name+"[") {
+				sb.WriteString(name)
+				for range indices.FindAllString(v, -1) {
+					sb.WriteString("[]")
+				}
+				list = append(list, sb.String())
+				sb.Reset()
+			}
+		} else {
+			list = append(list, v)
+		}
+	}
+
+	return list
 }
