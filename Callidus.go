@@ -130,21 +130,21 @@ func main() {
 		}
 	}
 
-	startPrinting := time.Now()
 	if printSol {
+		startPrinting := time.Now()
 		if len(allSolutions) > 0 {
-			if out == "" {
-				for _, sol := range allSolutions {
-					sol.Print()
-				}
-			} else {
-				// TODO write to out
+			for _, sol := range allSolutions {
+				sol.Print()
 			}
 		} else {
 			fmt.Println(csp, " has no solutions")
 		}
+		fmt.Println("Printing done in", time.Since(startPrinting))
 	}
-	fmt.Println("Printing done in", time.Since(startPrinting))
+
+	if out != "" {
+		// TODO write to out
+	}
 
 	if !subDebug {
 		err := os.RemoveAll(baseDir)
@@ -167,7 +167,7 @@ func setFlags() {
 	flagSet.BoolVar(&subSeq, "subSeq", false, "Activate sequential computation of sub-CSPs")
 	flagSet.BoolVar(&ySeq, "ySeq", false, "Use sequential Yannakakis' algorithm")
 	flagSet.BoolVar(&solDebug, "solDebug", false, "Check solutions of the CSP")
-	flagSet.BoolVar(&printSol, "printSol", true, "Print solutions of the CSP")
+	flagSet.BoolVar(&printSol, "printSol", false, "Print solutions of the CSP")
 
 	parseError := flagSet.Parse(os.Args[1:])
 	if parseError != nil {
