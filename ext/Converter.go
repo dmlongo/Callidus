@@ -10,11 +10,12 @@ import (
 // Convert a CSP into a hypergraph
 func Convert(cspPath string, outDir string) decomp.Hypergraph {
 	// TODO add logging
-	err := os.RemoveAll(outDir) // TODO removing wastes time, not necessary
+	execPath, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
-	cmd := exec.Command("java", "-jar", "libs/hgtools.jar", "-convert", "-xcsp", "-print", "-out", outDir, cspPath)
+	execPath += "/libs/hgtools.jar"
+	cmd := exec.Command("java", "-jar", execPath, "-convert", "-xcsp", "-print", "-out", outDir, cspPath)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)

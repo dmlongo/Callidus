@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dmlongo/callidus/ctr"
@@ -15,7 +16,9 @@ import (
 )
 
 var csp, ht, out string
-var htDebug, subInMem, subSeq, subDebug, ySeq, solDebug, printSol bool
+var subSeq, ySeq bool
+var htDebug, tabDebug, subDebug, solDebug bool
+var subInMem, printSol, printTimes bool
 var contSols int
 
 const wrkdir = "wrkdir"
@@ -33,28 +36,32 @@ func main() {
 	fmt.Print("Creating hypergraph... ")
 	startConversion := time.Now()
 	hypergraph := ext.Convert(csp, baseDir)
-	fmt.Println("done in", time.Since(startConversion))
+	durConversion := time.Since(startConversion)
+	fmt.Println("done in", durConversion)
 
 	var rawHypertree string
+	var startDecomposition time.Time
+	var durDecomp time.Duration
 	if ht == "" {
 		hg := baseDir + cspName + ".hg"
 		fmt.Print("Decomposing hypergraph... ")
-		startDecomposition := time.Now()
+		startDecomposition = time.Now()
 		if htDebug {
 			ht = baseDir + cspName + ".ht"
 			rawHypertree = ext.DecomposeToFile(hg, ht)
 		} else {
 			rawHypertree = ext.Decompose(hg)
 		}
-		fmt.Println("done in", time.Since(startDecomposition))
+		durDecomp = time.Since(startDecomposition)
+		fmt.Println("done in", durDecomp)
 	}
 
 	fmt.Print("Parsing hypertree, domains and constraints... ")
-	startPrep := time.Now()
+	startParsing := time.Now()
 
 	var tree decomp.Hypertree
 	var root *decomp.Node
-	if ht != "" || htDebug {
+	if ht != "" {
 		root, tree = ext.ParseDecompFromFile(ht)
 	} else {
 		root, tree = ext.ParseDecomp(&rawHypertree)
@@ -69,7 +76,8 @@ func main() {
 	ctrFile := baseDir + cspName + ".ctr"
 	constraints = ext.ParseConstraints(ctrFile)
 
-	fmt.Println("done in", time.Since(startPrep))
+	durParsing := time.Since(startParsing)
+	fmt.Println("done in", durParsing)
 
 	//go func() {
 	//	for {
@@ -79,18 +87,23 @@ func main() {
 	//}()
 	var satisfiable bool
 	fmt.Print("Solving sub-CSPs... ")
-	startSubComputation := time.Now()
+	startSubComp := time.Now()
 	if subSeq {
 		satisfiable = decomp.SolveSubCspSeq(tree, domains, constraints, baseDir)
 	} else {
 		satisfiable = decomp.SolveSubCspPar(tree, domains, constraints, baseDir) // TODO a bit buggy
 	}
-	fmt.Println("done in", time.Since(startSubComputation))
+	durSubComp := time.Since(startSubComp)
+	fmt.Println("done in", durSubComp)
 	if !satisfiable {
 		fmt.Println("NO SOLUTIONS")
+		if printTimes {
+			durs := []time.Duration{durConversion, durDecomp, durParsing, durSubComp, 0, 0, time.Since(start)}
+			printDurations(durs)
+		}
 		return
 	}
-	if subDebug {
+	if tabDebug {
 		tablesFolder := baseDir + "tables/"
 		err := os.RemoveAll(tablesFolder)
 		if err != nil {
@@ -113,13 +126,23 @@ func main() {
 	} else {
 		decomp.YannakakisPar(root)
 	}
-	fmt.Println("done in", time.Since(startYannakakis))
-	fmt.Println("Callidus solved", csp, "in", time.Since(start))
+	durYannakakis := time.Since(startYannakakis)
+	fmt.Println("done in", durYannakakis)
+	durSolving := time.Since(start)
+	fmt.Println("Callidus solved", csp, "in", durSolving)
 
 	fmt.Print("Computing all solutions... ")
 	startComputeAll := time.Now()
-	allSolutions := decomp.ComputeAllSolutions(root)
-	fmt.Println("done in", time.Since(startComputeAll))
+	if ySeq {
+		decomp.FullyReduceRelationsSeq(root)
+	} else {
+		decomp.FullyReduceRelationsPar(root)
+	}
+	allSolutions := decomp.ComputeAllSolutions(root) // TODO make a parallel version of this
+	durComputeAll := time.Since(startComputeAll)
+	durSolvingAll := time.Since(start)
+	fmt.Println("done in", durComputeAll)
+	contSols = len(root.Tuples)
 
 	if solDebug {
 		for _, sol := range allSolutions {
@@ -146,12 +169,28 @@ func main() {
 		// TODO write to out
 	}
 
+	if printTimes {
+		durs := []time.Duration{durConversion, durDecomp, durParsing, durSubComp, durYannakakis, durComputeAll, durSolvingAll}
+		printDurations(durs)
+	}
+
 	if !subDebug {
 		err := os.RemoveAll(baseDir)
 		if err != nil {
 			panic(err)
 		}
 	}
+}
+
+func printDurations(durations []time.Duration) {
+	var sb strings.Builder
+	for _, d := range durations {
+		//sb.WriteString(d.String())
+		sb.WriteString(strconv.Itoa(int(d.Milliseconds())))
+		sb.WriteString(";")
+	}
+	sb.WriteString(strconv.Itoa(contSols))
+	fmt.Println(sb.String())
 }
 
 func setFlags() {
@@ -162,12 +201,14 @@ func setFlags() {
 	flagSet.StringVar(&ht, "ht", "", "Path to a decomposition of the CSP to solve (GML format)")
 	flagSet.StringVar(&out, "out", "", "Save the solutions of the CSP into the specified file")
 	flagSet.BoolVar(&htDebug, "htDebug", false, "Write hypertree on disk for debug (false if -ht is set)")
-	flagSet.BoolVar(&subDebug, "subDebug", false, "Write sub-CSP files on disk for debug")
+	flagSet.BoolVar(&subDebug, "subDebug", false, "Write sub-CSP files on disk for debug") // TODO update
+	flagSet.BoolVar(&tabDebug, "tabDebug", false, "Save solutions of sb-CSPs on disk for debug")
 	flagSet.BoolVar(&subInMem, "subInMem", false, "Activate in-memory computation of sub-CSPs")
 	flagSet.BoolVar(&subSeq, "subSeq", false, "Activate sequential computation of sub-CSPs")
 	flagSet.BoolVar(&ySeq, "ySeq", false, "Use sequential Yannakakis' algorithm")
 	flagSet.BoolVar(&solDebug, "solDebug", false, "Check solutions of the CSP")
 	flagSet.BoolVar(&printSol, "printSol", false, "Print solutions of the CSP")
+	flagSet.BoolVar(&printTimes, "printTimes", false, "Print times of each resolution phase")
 
 	parseError := flagSet.Parse(os.Args[1:])
 	if parseError != nil {
@@ -219,6 +260,11 @@ func setFlags() {
 
 	//if ht == "" {ht = "output" + folder + "hypertree"}
 	//fmt.Printf("csp=%v\nht=%v\nout=%v\n", csp, ht, out)
+
+	err := os.RemoveAll(baseDir) // TODO removing wastes time, not necessary
+	if err != nil {
+		panic(err)
+	}
 
 	contSols = 0
 }

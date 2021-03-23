@@ -1,6 +1,7 @@
 package ext
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 
@@ -10,7 +11,12 @@ import (
 // CheckSolution of a CSP
 func CheckSolution(csp string, solution ctr.Solution) (string, bool) {
 	xcspSol := ctr.WriteSolution(solution)
-	out, err := exec.Command("java", "-cp", "libs/xcsp3-tools-1.2.3.jar", "org.xcsp.parser.callbacks.SolutionChecker", csp, xcspSol).Output()
+	execPath, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	execPath += "/libs/xcsp3-tools-1.2.3.jar"
+	out, err := exec.Command("java", "-cp", execPath, "org.xcsp.parser.callbacks.SolutionChecker", csp, xcspSol).Output()
 	if err != nil {
 		panic(err)
 	}

@@ -33,7 +33,12 @@ func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[st
 }
 
 func solveCSPSeq(cspFile string, node *Node) bool {
-	cmd := exec.Command("./libs/nacre", cspFile, "-complete", "-sols", "-verb=3")
+	execPath, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	execPath += "/libs/nacre"
+	cmd := exec.Command(execPath, cspFile, "-complete", "-sols", "-verb=3")
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
@@ -104,7 +109,12 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 
 func solveCSPPar(cspFile string, node *Node, wg *sync.WaitGroup, satChan chan bool) bool {
 	defer wg.Done()
-	cmd := exec.Command("./libs/nacre", cspFile, "-complete", "-sols", "-verb=3")
+	execPath, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	execPath += "/libs/nacre"
+	cmd := exec.Command(execPath, cspFile, "-complete", "-sols", "-verb=3")
 	out, err := cmd.StdoutPipe() // TODO why StdoutPipe() and not just Run?
 	if err != nil {
 		panic(err)

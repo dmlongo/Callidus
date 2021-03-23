@@ -8,33 +8,10 @@ import (
 	"github.com/dmlongo/callidus/ctr"
 )
 
-/*
-// IDJoiningIndex is.. I still don't know
-type IDJoiningIndex struct {
-	x int
-	y int
-}
-
-// MyMap is a map with a lock
-type MyMap struct {
-	hash map[IDJoiningIndex][][]int
-	lock *sync.RWMutex
-}
-
-var joiningIndex *MyMap
-
-func init() {
-	joiningIndex = &MyMap{}
-	joiningIndex.hash = make(map[IDJoiningIndex][][]int)
-	joiningIndex.lock = &sync.RWMutex{}
-}
-*/
-
 // YannakakisSeq performs the sequential Yannakakis' algorithm
 func YannakakisSeq(root *Node) *Node {
 	if len(root.Children) != 0 {
 		bottomUpSeq(root)
-		topDownSeq(root)
 	}
 	return root
 }
@@ -48,18 +25,10 @@ func bottomUpSeq(curr *Node) {
 	}
 }
 
-func topDownSeq(curr *Node) {
-	for _, child := range curr.Children {
-		semiJoin(child, curr)
-		topDownSeq(child)
-	}
-}
-
 // YannakakisPar performs the parrallel Yannakakis' algorithm
 func YannakakisPar(root *Node) *Node {
 	if len(root.Children) != 0 {
 		bottomUpPar(root)
-		topDownPar(root)
 	}
 	return root
 }
@@ -83,20 +52,6 @@ func bottomUpPar(curr *Node) {
 		semiJoin(curr.Parent, curr)
 		curr.Parent.Lock.Unlock()
 	}
-}
-
-func topDownPar(curr *Node) {
-	var wg *sync.WaitGroup = &sync.WaitGroup{}
-	wg.Add(len(curr.Children))
-	for _, child := range curr.Children {
-		semiJoin(child, curr)
-		go func(c *Node) {
-			topDownPar(c)
-			wg.Done()
-		}(child)
-
-	}
-	wg.Wait()
 }
 
 func semiJoin(left *Node, right *Node) {
@@ -154,29 +109,42 @@ func findJoinIndices(left *Node, right *Node) [][]int {
 	return out
 }
 
-/*
-func searchJoiningIndex(left *Node, right *Node) [][]int {
-	var joinIndices [][]int
-	joiningIndex.lock.RLock()
-	val, ok := joiningIndex.hash[IDJoiningIndex{x: left.ID, y: right.ID}]
-	joiningIndex.lock.RUnlock()
-	if ok {
-		joinIndices = val
-	} else {
-		var invJoinIndices [][]int
-		for iLeft, varLeft := range left.Bag() {
-			if iRight := right.Position(varLeft); iRight >= 0 {
-				joinIndices = append(joinIndices, []int{iLeft, iRight})
-				invJoinIndices = append(invJoinIndices, []int{iRight, iLeft})
-			}
-		}
-		joiningIndex.lock.Lock()
-		joiningIndex.hash[IDJoiningIndex{x: right.ID, y: left.ID}] = invJoinIndices
-		joiningIndex.lock.Unlock()
+// FullyReduceRelationsSeq after first bottom-up reduction sequentially
+func FullyReduceRelationsSeq(root *Node) *Node {
+	if len(root.Children) != 0 {
+		topDownSeq(root)
 	}
-	return joinIndices
+	return root
 }
-*/
+
+func topDownSeq(curr *Node) {
+	for _, child := range curr.Children {
+		semiJoin(child, curr)
+		topDownSeq(child)
+	}
+}
+
+// FullyReduceRelationsPar after first bottom-up reduction in parallel
+func FullyReduceRelationsPar(root *Node) *Node {
+	if len(root.Children) != 0 {
+		topDownPar(root)
+	}
+	return root
+}
+
+func topDownPar(curr *Node) {
+	var wg *sync.WaitGroup = &sync.WaitGroup{}
+	wg.Add(len(curr.Children))
+	for _, child := range curr.Children {
+		semiJoin(child, curr)
+		go func(c *Node) {
+			topDownPar(c)
+			wg.Done()
+		}(child)
+
+	}
+	wg.Wait()
+}
 
 // ComputeAllSolutions from fully reduced relations
 func ComputeAllSolutions(root *Node) []ctr.Solution {
