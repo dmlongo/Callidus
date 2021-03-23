@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -14,6 +15,20 @@ import (
 
 	"github.com/dmlongo/callidus/ctr"
 )
+
+var nacre string
+
+func init() {
+	path, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	path, err = filepath.EvalSymlinks(path)
+	if err != nil {
+		panic(err)
+	}
+	nacre = filepath.Dir(path) + "/libs/nacre"
+}
 
 // SolveSubCspSeq solve the CSPs associated to a hypertree sequentially
 func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[string]ctr.Constraint, baseDir string) bool {
@@ -33,12 +48,7 @@ func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[st
 }
 
 func solveCSPSeq(cspFile string, node *Node) bool {
-	execPath, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	execPath += "/libs/nacre"
-	cmd := exec.Command(execPath, cspFile, "-complete", "-sols", "-verb=3")
+	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
@@ -109,12 +119,7 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 
 func solveCSPPar(cspFile string, node *Node, wg *sync.WaitGroup, satChan chan bool) bool {
 	defer wg.Done()
-	execPath, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	execPath += "/libs/nacre"
-	cmd := exec.Command(execPath, cspFile, "-complete", "-sols", "-verb=3")
+	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
 	out, err := cmd.StdoutPipe() // TODO why StdoutPipe() and not just Run?
 	if err != nil {
 		panic(err)
