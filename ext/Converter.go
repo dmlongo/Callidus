@@ -1,7 +1,6 @@
 package ext
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,12 +15,10 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("beforeEval=", path)
 	path, err = filepath.EvalSymlinks(path)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("afterEval=", path)
 	hgtools = filepath.Dir(path) + "/libs/hgtools.jar"
 }
 
