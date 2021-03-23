@@ -1,7 +1,6 @@
 package ext
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -17,7 +16,6 @@ func CheckSolution(csp string, solution ctr.Solution) (string, bool) {
 		panic(err)
 	}
 	execPath += "/libs/xcsp3-tools-1.2.3.jar"
-	fmt.Println("execPath=", execPath)
 	out, err := exec.Command("java", "-cp", execPath, "org.xcsp.parser.callbacks.SolutionChecker", csp, xcspSol).Output()
 	if err != nil {
 		panic(err)

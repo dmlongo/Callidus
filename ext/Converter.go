@@ -1,6 +1,7 @@
 package ext
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 
@@ -15,6 +16,7 @@ func Convert(cspPath string, outDir string) decomp.Hypergraph {
 		panic(err)
 	}
 	execPath += "/libs/hgtools.jar"
+	fmt.Println("execPath=", execPath)
 	cmd := exec.Command("java", "-jar", execPath, "-convert", "-xcsp", "-print", "-out", outDir, cspPath)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
