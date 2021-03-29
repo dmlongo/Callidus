@@ -89,19 +89,30 @@ func readTuples(reader *bufio.Reader, node *Node) bool {
 func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[string]ctr.Constraint, baseDir string) bool {
 	subCspFolder := makeDir(baseDir + "subs/")
 
+	jobs := make(chan *Node)
+	go func() {
+		for _, node := range nodes {
+			jobs <- node
+		}
+		close(jobs)
+	}()
+
 	sat := make(chan bool)
 	quit := make(chan bool)
 	defer close(quit)
 	var wg sync.WaitGroup
-	wg.Add(len(nodes)) // TODO metti un limite basato sulle CPU
-	for _, node := range nodes {
-		go func(n *Node) {
-			nodeCtrs, nodeVars := filterCtrsVars(n, constraints, domains)
-			subFile := subCspFolder + "sub" + strconv.Itoa(n.ID) + ".xml"
-			ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
-			solveCSPPar(subFile, n, sat, quit)
-			wg.Done()
-		}(node)
+	wg.Add(len(nodes))
+	numWorkers := runtime.NumCPU()
+	for i := 0; i < numWorkers; i++ {
+		go func() { // launch a worker
+			for n := range jobs {
+				nodeCtrs, nodeVars := filterCtrsVars(n, constraints, domains)
+				subFile := subCspFolder + "sub" + strconv.Itoa(n.ID) + ".xml"
+				ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
+				solveCSPPar(subFile, n, sat, quit)
+				wg.Done()
+			}
+		}()
 	}
 	go func() {
 		wg.Wait()
