@@ -34,10 +34,7 @@ func BuildHypergraph(out io.ReadCloser) Hypergraph {
 		res := strings.Split(line, "(")
 		name := res[0]
 		vrts := res[1][:len(res[1])-3]
-		vertices := make([]string, 0)
-		for _, v := range strings.Split(vrts, ",") {
-			vertices = append(vertices, v)
-		}
+		vertices := strings.Split(vrts, ",")
 		hg.AddEdge(name, vertices)
 	}
 	return hg

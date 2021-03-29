@@ -218,7 +218,7 @@ func setFlags() {
 	}
 
 	if parseError != nil || csp == "" {
-		out := fmt.Sprint("Usage of Callidus (https://github.com/dmlongo/Callidus)\n")
+		out := "Usage of Callidus (https://github.com/dmlongo/Callidus)\n"
 		flagSet.VisitAll(func(f *flag.Flag) {
 			if f.Name != "csp" {
 				return
@@ -255,10 +255,10 @@ func setFlags() {
 
 	re := regexp.MustCompile(".*/")
 	cspName = re.ReplaceAllString(csp, "")
-	re = regexp.MustCompile("\\..*")
+	re = regexp.MustCompile(`\..*`)
 	cspDir = re.ReplaceAllString(cspName, "")
 	baseDir = wrkdir + "/" + cspDir + "/"
-	//fmt.Println("cspDir=", cspDir, ", cspName=", cspName, ", baseDir=", baseDir)
+	fmt.Println("cspDir=", cspDir, ", cspName=", cspName, ", baseDir=", baseDir)
 
 	//if ht == "" {ht = "output" + folder + "hypertree"}
 	//fmt.Printf("csp=%v\nht=%v\nout=%v\n", csp, ht, out)

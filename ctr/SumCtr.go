@@ -21,9 +21,7 @@ func (c *SumCtr) Variables() []string {
 	if c.strVars != nil {
 		return c.strVars
 	}
-	for _, v := range strings.Split(c.Vars, " ") {
-		c.strVars = append(c.strVars, v)
-	}
+	c.strVars = append(c.strVars, strings.Split(c.Vars, " ")...)
 	return c.strVars
 }
 
