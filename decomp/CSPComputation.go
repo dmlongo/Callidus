@@ -89,38 +89,36 @@ func readTuples(reader *bufio.Reader, node *Node) bool {
 func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[string]ctr.Constraint, baseDir string) bool {
 	subCspFolder := makeDir(baseDir + "subs/")
 
-	sat := true
-	subCspWg := &sync.WaitGroup{}
-	subCspWg.Add(len(nodes))
-	checkSatWg := &sync.WaitGroup{}
-	checkSatWg.Add(1)
-	satChan := make(chan bool, len(nodes))
+	sat := make(chan bool)
+	quit := make(chan bool)
+	defer close(quit)
+	var wg sync.WaitGroup
+	wg.Add(len(nodes)) // TODO metti un limite basato sulle CPU
 	for _, node := range nodes {
-		go func(node *Node) {
-			nodeCtrs, nodeVars := filterCtrsVars(node, constraints, domains)
-			subFile := subCspFolder + "sub" + strconv.Itoa(node.ID) + ".xml"
+		go func(n *Node) {
+			nodeCtrs, nodeVars := filterCtrsVars(n, constraints, domains)
+			subFile := subCspFolder + "sub" + strconv.Itoa(n.ID) + ".xml"
 			ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
-			satChan <- solveCSPPar(subFile, node, subCspWg, satChan)
+			solveCSPPar(subFile, n, sat, quit)
+			wg.Done()
 		}(node)
 	}
 	go func() {
-		defer checkSatWg.Done()
-		for sat = range satChan {
-			if !sat {
-				break
-			}
-		}
+		wg.Wait()
+		close(sat)
 	}()
-	subCspWg.Wait()
-	close(satChan)
-	checkSatWg.Wait()
-	return sat
+
+	for i := 0; i < len(nodes); i++ {
+		if !<-sat {
+			return false
+		}
+	}
+	return true
 }
 
-func solveCSPPar(cspFile string, node *Node, wg *sync.WaitGroup, satChan chan bool) bool {
-	defer wg.Done()
+func solveCSPPar(cspFile string, node *Node, sat chan<- bool, quit <-chan bool) {
 	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
-	out, err := cmd.StdoutPipe() // TODO why StdoutPipe() and not just Run?
+	out, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
 	}
@@ -129,20 +127,53 @@ func solveCSPPar(cspFile string, node *Node, wg *sync.WaitGroup, satChan chan bo
 		panic(err)
 	}
 
-	for {
+	res := false
+	tuples := fetchTuples(reader, len(node.Bag()), quit)
+	for tup := range tuples {
 		select {
-		case sat := <-satChan:
-			if !sat {
-				err = cmd.Process.Kill()
-				if err != nil {
-					panic(err)
-				}
-				return false
+		case <-quit:
+			err = cmd.Process.Kill()
+			if err != nil {
+				panic(err)
 			}
+			return
 		default:
-			return readTuples(reader, node)
+			res = true
+			node.Tuples = append(node.Tuples, tup)
 		}
 	}
+	sat <- res
+}
+
+func fetchTuples(reader *bufio.Reader, arity int, quit <-chan bool) <-chan []int {
+	out := make(chan []int) // TODO buffer maybe?
+	go func() {
+		defer close(out)
+		for {
+			select {
+			case <-quit:
+				return
+			default:
+				line, err := reader.ReadString('\n')
+				if err == io.EOF && len(line) == 0 {
+					return
+				}
+				if strings.HasPrefix(line, "v") {
+					reg := regexp.MustCompile(".*<values>(.*) </values>.*")
+					tup := make([]int, arity)
+					for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+						v, err := strconv.Atoi(value)
+						if err != nil {
+							panic(err)
+						}
+						tup[i] = v
+					}
+					out <- tup
+				}
+			}
+		}
+	}()
+	return out
 }
 
 func filterCtrsVars(n *Node, ctrs map[string]ctr.Constraint, doms map[string]string) ([]ctr.Constraint, map[string]string) {
@@ -171,40 +202,6 @@ func makeDir(name string) string {
 	}
 	return name
 }
-
-/*
-func getPossibleValues(constraint *Constraint) string {
-	possibleValues := "<supports> "
-	if !constraint.CType {
-		possibleValues = "<conflicts> "
-	}
-	for _, tup := range constraint.Relation {
-		possibleValues += "("
-		for i := range tup {
-			value := strconv.Itoa(tup[i])
-			if i == len(tup)-1 {
-				possibleValues += value
-			} else {
-				possibleValues += value + ","
-			}
-		}
-		possibleValues += ")"
-	}
-	if constraint.CType {
-		possibleValues += " </supports>\n"
-	} else {
-		possibleValues += " </conflicts>\n"
-	}
-	return possibleValues
-}
-
-/*func doNacreMakeFile(){
-	cmd := exec.Command("make")
-	cmd.Dir = "/mnt/c/Users/simon/Desktop/Università/Tesi/Programmi/CSP_Project/libs/nacre_master/core"
-	if err := cmd.Run(); err != nil {
-		panic(err)
-	}
-}*/
 
 // PrintMemUsage prints the memory usage
 func PrintMemUsage() {
