@@ -16,6 +16,7 @@ import (
 )
 
 var csp, ht, out string
+var decompTime string
 var subSeq, ySeq bool
 var htDebug, tabDebug, subDebug, solDebug bool
 var subInMem, printSol, printTimes bool
@@ -48,9 +49,9 @@ func main() {
 		startDecomposition = time.Now()
 		if htDebug {
 			ht = baseDir + cspName + ".ht"
-			rawHypertree = ext.DecomposeToFile(hg, ht)
+			rawHypertree = ext.DecomposeToFile(hg, ht, decompTime)
 		} else {
-			rawHypertree = ext.Decompose(hg)
+			rawHypertree = ext.Decompose(hg, decompTime)
 		}
 		durDecomp = time.Since(startDecomposition)
 		fmt.Println("done in", durDecomp)
@@ -200,6 +201,7 @@ func setFlags() {
 	flagSet.StringVar(&csp, "csp", "", "Path to the CSP to solve (XCSP3 format)")
 	flagSet.StringVar(&ht, "ht", "", "Path to a decomposition of the CSP to solve (GML format)")
 	flagSet.StringVar(&out, "out", "", "Save the solutions of the CSP into the specified file")
+	flagSet.StringVar(&decompTime, "decompTime", "3600", "Set a timeout (seconds) for computing a decomposition of the CSP")
 	flagSet.BoolVar(&htDebug, "htDebug", false, "Write hypertree on disk for debug (false if -ht is set)")
 	flagSet.BoolVar(&subDebug, "subDebug", false, "Write sub-CSP files on disk for debug") // TODO update
 	flagSet.BoolVar(&tabDebug, "tabDebug", false, "Save solutions of sb-CSPs on disk for debug")
