@@ -100,9 +100,13 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 	sat := make(chan bool)
 	quit := make(chan bool)
 	defer close(quit)
-	var wg sync.WaitGroup
-	wg.Add(len(nodes))
+	numNodes := len(nodes)
 	numWorkers := runtime.NumCPU()
+	var wg sync.WaitGroup
+	wg.Add(numNodes)
+	if numNodes < numWorkers {
+		numWorkers = numNodes
+	}
 	for i := 0; i < numWorkers; i++ {
 		go func() { // launch a worker
 			for n := range jobs {
