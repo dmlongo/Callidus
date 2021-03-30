@@ -1,7 +1,9 @@
 package ext
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,5 +37,16 @@ func Convert(cspPath string, outDir string) decomp.Hypergraph {
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	}
-	return decomp.BuildHypergraph(stdout)
+
+	reader := bufio.NewReader(stdout)
+	for {
+		line, err := reader.ReadString('\n')
+		if err == io.EOF && len(line) == 0 {
+			break
+		}
+		fmt.Println("line=", line)
+	}
+	return nil
+
+	//return decomp.BuildHypergraph(stdout)
 }
