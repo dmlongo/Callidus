@@ -2,6 +2,7 @@ package decomp
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -29,6 +30,7 @@ func BuildHypergraph(out io.ReadCloser) Hypergraph {
 		if err == io.EOF && len(line) == 0 {
 			break
 		}
+		fmt.Println("line=", line)
 		//reg = regexp.MustCompile("(.*)\((.*)\).*")
 		//res = reg.FindStringSubmatch(line)
 		res := strings.Split(line, "(")

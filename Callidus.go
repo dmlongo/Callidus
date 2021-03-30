@@ -92,7 +92,7 @@ func main() {
 	if subSeq {
 		satisfiable = decomp.SolveSubCspSeq(tree, domains, constraints, baseDir)
 	} else {
-		satisfiable = decomp.SolveSubCspPar(tree, domains, constraints, baseDir) // TODO a bit buggy
+		satisfiable = decomp.SolveSubCspPar(tree, domains, constraints, baseDir)
 	}
 	durSubComp := time.Since(startSubComp)
 	fmt.Println("done in", durSubComp)
@@ -258,7 +258,7 @@ func setFlags() {
 	re = regexp.MustCompile(`\..*`)
 	cspDir = re.ReplaceAllString(cspName, "")
 	baseDir = wrkdir + "/" + cspDir + "/"
-	fmt.Println("cspDir=", cspDir, ", cspName=", cspName, ", baseDir=", baseDir)
+	//fmt.Println("cspDir=", cspDir, ", cspName=", cspName, ", baseDir=", baseDir)
 
 	//if ht == "" {ht = "output" + folder + "hypertree"}
 	//fmt.Printf("csp=%v\nht=%v\nout=%v\n", csp, ht, out)

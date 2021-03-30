@@ -1,6 +1,7 @@
 package ext
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,6 +26,7 @@ func init() {
 // Convert a CSP into a hypergraph
 func Convert(cspPath string, outDir string) decomp.Hypergraph {
 	// TODO add logging
+	fmt.Println("hgtools=", hgtools)
 	cmd := exec.Command("java", "-jar", hgtools, "-convert", "-xcsp", "-print", "-out", outDir, cspPath)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
