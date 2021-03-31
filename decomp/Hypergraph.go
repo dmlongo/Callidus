@@ -2,8 +2,8 @@ package decomp
 
 import (
 	"bufio"
+	"fmt"
 	"io"
-	"strings"
 )
 
 // Edge represents a hyperedge in a hypergraph
@@ -29,13 +29,14 @@ func BuildHypergraph(out io.ReadCloser) Hypergraph {
 		if err == io.EOF && len(line) == 0 {
 			break
 		}
+		fmt.Println("line=", line)
 		//reg = regexp.MustCompile("(.*)\((.*)\).*")
 		//res = reg.FindStringSubmatch(line)
-		res := strings.Split(line, "(")
+		/*res := strings.Split(line, "(")
 		name := res[0]
 		vrts := res[1][:len(res[1])-3]
 		vertices := strings.Split(vrts, ",")
-		hg.AddEdge(name, vertices)
+		hg.AddEdge(name, vertices)*/
 	}
 	return hg
 }
