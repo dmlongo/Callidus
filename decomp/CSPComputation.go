@@ -39,7 +39,7 @@ func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[st
 		nodeCtrs, nodeVars := filterCtrsVars(node, constraints, domains)
 		subFile := subCspFolder + "sub" + strconv.Itoa(node.ID) + ".xml"
 		ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
-		sat = solveCSPSeq(subFile, node)
+		sat = solveCSPSeq(subFile, len(nodeVars), node)
 		if !sat {
 			break
 		}
@@ -47,7 +47,7 @@ func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[st
 	return sat
 }
 
-func solveCSPSeq(cspFile string, node *Node) bool {
+func solveCSPSeq(cspFile string, numVars int, node *Node) bool {
 	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
 	out, err := cmd.StdoutPipe()
 	if err != nil {
@@ -58,10 +58,10 @@ func solveCSPSeq(cspFile string, node *Node) bool {
 		panic(err)
 	}
 
-	return readTuples(reader, node)
+	return readTuples(reader, numVars, node)
 }
 
-func readTuples(reader *bufio.Reader, node *Node) bool {
+func readTuples(reader *bufio.Reader, arity int, node *Node) bool {
 	solFound := false
 	for {
 		line, err := reader.ReadString('\n')
@@ -70,7 +70,7 @@ func readTuples(reader *bufio.Reader, node *Node) bool {
 		}
 		if strings.HasPrefix(line, "v") {
 			reg := regexp.MustCompile(".*<values>(.*) </values>.*")
-			tup := make([]int, len(node.Bag()))
+			tup := make([]int, arity)
 			for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
 				v, err := strconv.Atoi(value)
 				if err != nil {
@@ -113,7 +113,7 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 				nodeCtrs, nodeVars := filterCtrsVars(n, constraints, domains)
 				subFile := subCspFolder + "sub" + strconv.Itoa(n.ID) + ".xml"
 				ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
-				solveCSPPar(subFile, n, sat, quit)
+				solveCSPPar(subFile, len(nodeVars), n, sat, quit)
 				wg.Done()
 			}
 		}()
@@ -131,7 +131,7 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 	return true
 }
 
-func solveCSPPar(cspFile string, node *Node, sat chan<- bool, quit <-chan bool) {
+func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit <-chan bool) {
 	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
 	out, err := cmd.StdoutPipe()
 	if err != nil {
@@ -143,7 +143,7 @@ func solveCSPPar(cspFile string, node *Node, sat chan<- bool, quit <-chan bool) 
 	}
 
 	res := false
-	tuples := fetchTuples(reader, len(node.Bag()), quit)
+	tuples := fetchTuples(reader, numVars, quit)
 	for tup := range tuples {
 		select {
 		case <-quit:
