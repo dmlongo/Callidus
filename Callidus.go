@@ -142,11 +142,12 @@ func main() {
 	allSolutions := decomp.ComputeAllSolutions(root) // TODO make a parallel version of this
 	durComputeAll := time.Since(startComputeAll)
 	durSolvingAll := time.Since(start)
+	contSols = len(allSolutions)
 	fmt.Println("done in", durComputeAll)
-	contSols = len(root.Tuples)
+	fmt.Println("Callidus found", contSols, "solutions in", durSolvingAll)
 
 	if solDebug {
-		fmt.Print("Checking ", len(allSolutions), " solutions... ")
+		fmt.Print("Checking ", contSols, " solutions... ")
 		startCheckSol := time.Now()
 		for _, sol := range allSolutions {
 			if err, ok := ext.CheckSolution(csp, sol); !ok {

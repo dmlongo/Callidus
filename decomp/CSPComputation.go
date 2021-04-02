@@ -58,20 +58,24 @@ func solveCSPSeq(cspFile string, numVars int, node *Node) bool {
 		panic(err)
 	}
 
-	return readTuples(reader, numVars, node)
+	return readTuples(reader, cspFile, numVars, node)
 }
 
-func readTuples(reader *bufio.Reader, arity int, node *Node) bool {
+func readTuples(reader *bufio.Reader, cspFile string, arity int, node *Node) bool {
 	solFound := false
+	reg := regexp.MustCompile(`.*<values>(.*)</values>.*`)
 	for {
 		line, err := reader.ReadString('\n')
 		if err == io.EOF && len(line) == 0 {
 			break
 		}
 		if strings.HasPrefix(line, "v") {
-			reg := regexp.MustCompile(".*<values>(.*) </values>.*")
+			matches := reg.FindStringSubmatch(line)
+			if len(matches) < 2 {
+				panic(cspFile + ", bad values= " + line)
+			}
 			tup := make([]int, arity)
-			for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+			for i, value := range strings.Split(strings.TrimSpace(matches[1]), " ") {
 				v, err := strconv.Atoi(value)
 				if err != nil {
 					panic(err)
@@ -143,7 +147,7 @@ func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit 
 	}
 
 	res := false
-	tuples := fetchTuples(reader, numVars, quit)
+	tuples := fetchTuples(reader, cspFile, numVars, quit)
 	for tup := range tuples {
 		select {
 		case <-quit:
@@ -160,10 +164,11 @@ func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit 
 	sat <- res
 }
 
-func fetchTuples(reader *bufio.Reader, arity int, quit <-chan bool) <-chan []int {
+func fetchTuples(reader *bufio.Reader, cspFile string, arity int, quit <-chan bool) <-chan []int {
 	out := make(chan []int) // TODO buffer maybe?
 	go func() {
 		defer close(out)
+		reg := regexp.MustCompile(`.*<values>(.*)</values>.*`)
 		for {
 			select {
 			case <-quit:
@@ -174,9 +179,12 @@ func fetchTuples(reader *bufio.Reader, arity int, quit <-chan bool) <-chan []int
 					return
 				}
 				if strings.HasPrefix(line, "v") {
-					reg := regexp.MustCompile(".*<values>(.*) </values>.*")
+					matches := reg.FindStringSubmatch(line)
+					if len(matches) < 2 {
+						panic(cspFile + ", bad values= " + line)
+					}
 					tup := make([]int, arity)
-					for i, value := range strings.Split(reg.FindStringSubmatch(line)[1], " ") {
+					for i, value := range strings.Split(strings.TrimSpace(matches[1]), " ") {
 						v, err := strconv.Atoi(value)
 						if err != nil {
 							panic(err)
