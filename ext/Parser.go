@@ -2,6 +2,7 @@ package ext
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"regexp"
 	"sort"
@@ -125,62 +126,58 @@ func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
 	if err != nil {
 		panic(err)
 	}
-	scanner := bufio.NewScanner(file)
+	reader := bufio.NewReader(file)
 	constraints := make(map[string]ctr.Constraint)
-	for scanner.Scan() {
+	numLines := 0
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				if len(line) == 0 {
+					break
+				}
+			} else {
+				panic(err)
+			}
+		}
+		numLines += 1
+		line = strings.TrimSuffix(line, "\n")
+
 		var name string
 		var constr ctr.Constraint
-		switch line := scanner.Text(); line {
+		switch line {
 		case "ExtensionCtr":
-			scanner.Scan()
-			name = scanner.Text()
-			scanner.Scan()
-			vars := scanner.Text()
-			scanner.Scan()
-			ctype := scanner.Text()
-			scanner.Scan()
-			tuples := scanner.Text()
+			name = readLine(reader, &numLines)
+			vars := readLine(reader, &numLines)
+			ctype := readLine(reader, &numLines)
+			tuples := readLine(reader, &numLines)
 			constr = &ctr.ExtensionCtr{CName: name, Vars: vars, CType: ctype, Tuples: tuples}
 		case "PrimitiveCtr":
-			scanner.Scan()
-			name = scanner.Text()
-			scanner.Scan()
-			vars := scanner.Text()
-			scanner.Scan()
-			f := scanner.Text()
+			name = readLine(reader, &numLines)
+			vars := readLine(reader, &numLines)
+			f := readLine(reader, &numLines)
 			constr = &ctr.PrimitiveCtr{CName: name, Vars: vars, Function: f}
 		case "AllDifferentCtr":
-			scanner.Scan()
-			name = scanner.Text()
-			scanner.Scan()
-			vars := scanner.Text()
+			name = readLine(reader, &numLines)
+			vars := readLine(reader, &numLines)
 			constr = &ctr.AllDifferentCtr{CName: name, Vars: vars}
 		case "ElementCtr":
-			scanner.Scan()
-			name = scanner.Text()
-			scanner.Scan()
-			vars := scanner.Text()
-			scanner.Scan()
-			startIndex := scanner.Text()
-			scanner.Scan()
-			index := scanner.Text()
-			scanner.Scan()
-			rank := scanner.Text()
-			scanner.Scan()
-			condition := scanner.Text()
+			name = readLine(reader, &numLines)
+			vars := readLine(reader, &numLines)
+			startIndex := readLine(reader, &numLines)
+			index := readLine(reader, &numLines)
+			rank := readLine(reader, &numLines)
+			condition := readLine(reader, &numLines)
 			constr = &ctr.ElementCtr{CName: name, Vars: vars, StartIndex: startIndex, Index: index, Rank: rank, Condition: condition}
 		case "SumCtr":
-			scanner.Scan()
-			name = scanner.Text()
-			scanner.Scan()
-			vars := scanner.Text()
-			scanner.Scan()
-			coeffs := scanner.Text()
-			scanner.Scan()
-			condition := scanner.Text()
+			name = readLine(reader, &numLines)
+			vars := readLine(reader, &numLines)
+			coeffs := readLine(reader, &numLines)
+			condition := readLine(reader, &numLines)
 			constr = &ctr.SumCtr{CName: name, Vars: vars, Coeffs: coeffs, Condition: condition}
 		default:
-			panic(line + " not implemented yet")
+			msg := ctrFile + ", line " + strconv.Itoa(numLines) + ": " + line + " not implemented yet"
+			panic(msg)
 		}
 		constraints[name] = constr
 	}
@@ -189,6 +186,15 @@ func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
 		panic(err)
 	}
 	return constraints
+}
+
+func readLine(r *bufio.Reader, n *int) string {
+	line, err := r.ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+	*n = *n + 1
+	return strings.TrimSuffix(line, "\n")
 }
 
 // ParseDomains of CSP variables

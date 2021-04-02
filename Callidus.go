@@ -146,12 +146,15 @@ func main() {
 	contSols = len(root.Tuples)
 
 	if solDebug {
+		fmt.Print("Checking ", len(allSolutions), " solutions... ")
+		startCheckSol := time.Now()
 		for _, sol := range allSolutions {
 			if err, ok := ext.CheckSolution(csp, sol); !ok {
 				panic(err)
 				//panic(fmt.Sprintf("%v is not a solution.", sol))
 			}
 		}
+		fmt.Println("done in", time.Since(startCheckSol))
 	}
 
 	if printSol {
