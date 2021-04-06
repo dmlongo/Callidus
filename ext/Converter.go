@@ -1,6 +1,9 @@
 package ext
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,6 +29,8 @@ func init() {
 func Convert(cspPath string, outDir string) decomp.Hypergraph {
 	// TODO add logging
 	cmd := exec.Command("java", "-jar", hgtools, "-convert", "-xcsp", "-print", "-out", outDir, cspPath)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
@@ -33,5 +38,9 @@ func Convert(cspPath string, outDir string) decomp.Hypergraph {
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	}
-	return decomp.BuildHypergraph(stdout)
+	hg := decomp.BuildHypergraph(bufio.NewReader(stdout))
+	if err := cmd.Wait(); err != nil {
+		panic(fmt.Sprintf("hgtools failed: %v: %s", err, stderr.String()))
+	}
+	return hg
 }

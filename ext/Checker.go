@@ -1,6 +1,7 @@
 package ext
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,7 +29,11 @@ func CheckSolution(csp string, solution ctr.Solution) (string, bool) {
 	xcspSol := ctr.WriteSolution(solution)
 	out, err := exec.Command("java", "-cp", xcsp3Tools, "org.xcsp.parser.callbacks.SolutionChecker", csp, xcspSol).Output()
 	if err != nil {
-		panic(err)
+		if ee, ok := err.(*exec.ExitError); ok {
+			panic(fmt.Sprintf("xcsp3-tools failed: %v: %s", err, ee.Stderr))
+		} else {
+			panic(fmt.Sprintf("xcsp3-tools failed: %v", err))
+		}
 	}
 
 	output := string(out)

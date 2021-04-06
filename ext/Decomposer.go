@@ -1,6 +1,7 @@
 package ext
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,7 +33,11 @@ func Decompose(hgPath string, timeout string) string {
 	// TODO add logging, check if you get errors if command is wrong
 	out, err := exec.Command(balancedGo, "-graph", hgPath, "-approx", timeout, "-det").Output()
 	if err != nil {
-		panic(err)
+		if ee, ok := err.(*exec.ExitError); ok {
+			panic(fmt.Sprintf("BalancedGo failed: %v: %s", err, ee.Stderr))
+		} else {
+			panic(fmt.Sprintf("BalancedGo failed: %v", err))
+		}
 	}
 	return string(out)
 }
@@ -42,7 +47,11 @@ func DecomposeToFile(hgPath string, htPath string, timeout string) string {
 	// TODO add logging, check if you get errors if command is wrong
 	out, err := exec.Command(balancedGo, "-graph", hgPath, "-approx", timeout, "-det", "-gml", htPath).Output()
 	if err != nil {
-		panic(err)
+		if ee, ok := err.(*exec.ExitError); ok {
+			panic(fmt.Sprintf("BalancedGo failed: %v: %s", err, ee.Stderr))
+		} else {
+			panic(fmt.Sprintf("BalancedGo failed: %v", err))
+		}
 	}
 	return string(out)
 }

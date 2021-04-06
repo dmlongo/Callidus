@@ -2,6 +2,7 @@ package decomp
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -51,16 +52,24 @@ func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[st
 
 func solveCSPSeq(cspFile string, numVars int, node *Node) bool {
 	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
-	out, err := cmd.StdoutPipe()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
 	}
-	reader := bufio.NewReader(out)
+	if err := cmd.Start(); err != nil {
+		panic(err)
+	}
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	}
 
-	return readTuples(reader, cspFile, numVars, node)
+	res := readTuples(bufio.NewReader(stdout), cspFile, numVars, node)
+	if err := cmd.Wait(); err != nil {
+		panic(fmt.Sprintf("nacre failed: %v: %s", err, stderr.String()))
+	}
+	return res
 }
 
 func readTuples(reader *bufio.Reader, cspFile string, arity int, node *Node) bool {
@@ -138,17 +147,21 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 
 func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit <-chan bool) {
 	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
-	out, err := cmd.StdoutPipe()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		panic(err)
 	}
-	reader := bufio.NewReader(out)
+	if err := cmd.Start(); err != nil {
+		panic(err)
+	}
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	}
 
 	res := false
-	tuples := fetchTuples(reader, cspFile, numVars, quit)
+	tuples := fetchTuples(bufio.NewReader(stdout), cspFile, numVars, quit)
 	for tup := range tuples {
 		select {
 		case <-quit:
@@ -162,10 +175,13 @@ func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit 
 			node.Tuples = append(node.Tuples, tup)
 		}
 	}
+	if err := cmd.Wait(); err != nil {
+		panic(fmt.Sprintf("nacre failed: %v: %s", err, stderr.String()))
+	}
 	sat <- res
 }
 
-func fetchTuples(reader *bufio.Reader, cspFile string, arity int, quit <-chan bool) <-chan []int {
+func fetchTuples(r *bufio.Reader, cspFile string, arity int, quit <-chan bool) <-chan []int {
 	out := make(chan []int) // TODO buffer maybe?
 	go func() {
 		defer close(out)
@@ -174,7 +190,7 @@ func fetchTuples(reader *bufio.Reader, cspFile string, arity int, quit <-chan bo
 			case <-quit:
 				return
 			default:
-				line, err := reader.ReadString('\n')
+				line, err := r.ReadString('\n')
 				if err == io.EOF && len(line) == 0 {
 					return
 				}

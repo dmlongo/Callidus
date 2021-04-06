@@ -21,11 +21,10 @@ func (hg Hypergraph) AddEdge(name string, vertices []string) {
 }
 
 // BuildHypergraph from a file
-func BuildHypergraph(out io.ReadCloser) Hypergraph {
+func BuildHypergraph(r *bufio.Reader) Hypergraph {
 	hg := make(Hypergraph)
-	reader := bufio.NewReader(out)
 	for {
-		line, err := reader.ReadString('\n')
+		line, err := r.ReadString('\n')
 		if err == io.EOF && len(line) == 0 {
 			break
 		}
