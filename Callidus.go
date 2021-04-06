@@ -257,7 +257,7 @@ func setFlags() {
 		htDebug = false
 	}
 
-	re := regexp.MustCompile(".*/")
+	re := regexp.MustCompile(`.*/`)
 	cspName = re.ReplaceAllString(csp, "")
 	re = regexp.MustCompile(`\..*`)
 	cspDir = re.ReplaceAllString(cspName, "")

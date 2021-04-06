@@ -14,28 +14,48 @@ import (
 	"github.com/dmlongo/callidus/decomp"
 )
 
+var regexNodeID = regexp.MustCompile(`id (.*).*`)
+var regexNodeLabel = regexp.MustCompile(`label "{(.*)}\s+{(.*)}".*`)
+var regexEdgeSource = regexp.MustCompile(`source (.*).*`)
+var regexEdgeTarget = regexp.MustCompile(`target (.*).*`)
+
+var regexBag = regexp.MustCompile(`Bag: {(.*)}.*`)
+var regexCover = regexp.MustCompile(`Cover: {(.*)}.*`)
+
 // ParseDecompFromFile from GML file
 func ParseDecompFromFile(htPath string) (*decomp.Node, []*decomp.Node) {
 	file, err := os.Open(htPath)
 	if err != nil {
 		panic(err)
 	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
 	nodes := make(map[int]*decomp.Node)
 	var onlyNodes []*decomp.Node
-	scanner := bufio.NewScanner(file)
-	var line string
-	for scanner.Scan() {
-		line = scanner.Text()
+	reader := bufio.NewReader(file)
+	numLines := 0
+	for {
+		line, eof := readLineCount(reader, &numLines)
+		if eof {
+			break
+		}
+
 		if strings.Contains(line, "node") {
-			scanner.Scan()
-			line = scanner.Text()
-			reg := regexp.MustCompile("id (.*).*")
-			res := reg.FindStringSubmatch(line)
+			line, _ = readLineCount(reader, &numLines)
+			res := regexNodeID.FindStringSubmatch(line)
+			if len(res) < 2 {
+				panic("Cannot parse node ID in line" + strconv.Itoa(numLines) + ": " + line)
+			}
 			id, _ := strconv.Atoi(res[1])
-			scanner.Scan()
-			line = scanner.Text()
-			reg = regexp.MustCompile("label \"{(.*)}\\s+{(.*)}\".*")
-			res = reg.FindStringSubmatch(line)
+			line, _ = readLineCount(reader, &numLines)
+			res = regexNodeLabel.FindStringSubmatch(line)
+			if len(res) < 3 {
+				panic("Cannot parse node label in line" + strconv.Itoa(numLines) + ": " + line)
+			}
 			edges := strings.Split(res[1], ", ")
 			variables := strings.Split(res[2], ", ")
 			sort.Strings(variables)
@@ -45,19 +65,22 @@ func ParseDecompFromFile(htPath string) (*decomp.Node, []*decomp.Node) {
 			nodes[id] = &node
 			onlyNodes = append(onlyNodes, &node)
 		} else if strings.Contains(line, "edge") {
-			scanner.Scan()
-			line = scanner.Text()
-			reg := regexp.MustCompile("source (.*).*")
-			res := reg.FindStringSubmatch(line)
+			line, _ = readLineCount(reader, &numLines)
+			res := regexEdgeSource.FindStringSubmatch(line)
+			if len(res) < 2 {
+				panic("Cannot parse edge source in line" + strconv.Itoa(numLines) + ": " + line)
+			}
 			source, _ := strconv.Atoi(res[1])
-			scanner.Scan()
-			line = scanner.Text()
-			reg = regexp.MustCompile("target (.*).*")
-			res = reg.FindStringSubmatch(line)
+			line, _ = readLineCount(reader, &numLines)
+			res = regexEdgeTarget.FindStringSubmatch(line)
+			if len(res) < 2 {
+				panic("Cannot parse edge target in line" + strconv.Itoa(numLines) + ": " + line)
+			}
 			target, _ := strconv.Atoi(res[1])
 			nodes[source].AddChild(nodes[target])
 		}
 	}
+
 	var root *decomp.Node
 	for a := range nodes {
 		if nodes[a].Parent == nil {
@@ -65,10 +88,7 @@ func ParseDecompFromFile(htPath string) (*decomp.Node, []*decomp.Node) {
 			break
 		}
 	}
-	err = file.Close()
-	if err != nil {
-		panic(err)
-	}
+
 	return root, onlyNodes
 }
 
@@ -82,8 +102,10 @@ func ParseDecomp(htRaw *string) (*decomp.Node, []*decomp.Node) {
 	for i := 0; i < len(output); i++ {
 		line := output[i]
 		if strings.Contains(line, "Bag") {
-			reg := regexp.MustCompile("Bag: {(.*)}.*")
-			res := reg.FindStringSubmatch(line)
+			res := regexBag.FindStringSubmatch(line)
+			if len(res) < 2 {
+				panic("Cannot parse bag in: " + line)
+			}
 			variables := strings.Split(res[1], ", ")
 			sort.Strings(variables)
 			var nodeFather *decomp.Node = nil
@@ -99,8 +121,10 @@ func ParseDecomp(htRaw *string) (*decomp.Node, []*decomp.Node) {
 			idNodes++
 			onlyNodes = append(onlyNodes, &node)
 		} else if strings.Contains(line, "Cover") {
-			reg := regexp.MustCompile("Cover: {(.*)}.*")
-			res := reg.FindStringSubmatch(line)
+			res := regexCover.FindStringSubmatch(line)
+			if len(res) < 2 {
+				panic("Cannot parse cover in: " + line)
+			}
 			cov := strings.Split(res[1], ", ")
 			n := onlyNodes[idNodes-1]
 			n.SetCover(cov)
@@ -126,54 +150,52 @@ func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
 	if err != nil {
 		panic(err)
 	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
 	reader := bufio.NewReader(file)
 	constraints := make(map[string]ctr.Constraint)
 	numLines := 0
 	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				if len(line) == 0 {
-					break
-				}
-			} else {
-				panic(err)
-			}
+		line, eof := readLineCount(reader, &numLines)
+		if eof {
+			break
 		}
-		numLines += 1
-		line = strings.TrimSuffix(line, "\n")
 
 		var name string
 		var constr ctr.Constraint
 		switch line {
 		case "ExtensionCtr":
-			name = readLine(reader, &numLines)
-			vars := readLine(reader, &numLines)
-			ctype := readLine(reader, &numLines)
-			tuples := readLine(reader, &numLines)
+			name, _ = readLineCount(reader, &numLines)
+			vars, _ := readLineCount(reader, &numLines)
+			ctype, _ := readLineCount(reader, &numLines)
+			tuples, _ := readLineCount(reader, &numLines)
 			constr = &ctr.ExtensionCtr{CName: name, Vars: vars, CType: ctype, Tuples: tuples}
 		case "PrimitiveCtr":
-			name = readLine(reader, &numLines)
-			vars := readLine(reader, &numLines)
-			f := readLine(reader, &numLines)
+			name, _ = readLineCount(reader, &numLines)
+			vars, _ := readLineCount(reader, &numLines)
+			f, _ := readLineCount(reader, &numLines)
 			constr = &ctr.PrimitiveCtr{CName: name, Vars: vars, Function: f}
 		case "AllDifferentCtr":
-			name = readLine(reader, &numLines)
-			vars := readLine(reader, &numLines)
+			name, _ = readLineCount(reader, &numLines)
+			vars, _ := readLineCount(reader, &numLines)
 			constr = &ctr.AllDifferentCtr{CName: name, Vars: vars}
 		case "ElementCtr":
-			name = readLine(reader, &numLines)
-			vars := readLine(reader, &numLines)
-			startIndex := readLine(reader, &numLines)
-			index := readLine(reader, &numLines)
-			rank := readLine(reader, &numLines)
-			condition := readLine(reader, &numLines)
+			name, _ = readLineCount(reader, &numLines)
+			vars, _ := readLineCount(reader, &numLines)
+			startIndex, _ := readLineCount(reader, &numLines)
+			index, _ := readLineCount(reader, &numLines)
+			rank, _ := readLineCount(reader, &numLines)
+			condition, _ := readLineCount(reader, &numLines)
 			constr = &ctr.ElementCtr{CName: name, Vars: vars, StartIndex: startIndex, Index: index, Rank: rank, Condition: condition}
 		case "SumCtr":
-			name = readLine(reader, &numLines)
-			vars := readLine(reader, &numLines)
-			coeffs := readLine(reader, &numLines)
-			condition := readLine(reader, &numLines)
+			name, _ = readLineCount(reader, &numLines)
+			vars, _ := readLineCount(reader, &numLines)
+			coeffs, _ := readLineCount(reader, &numLines)
+			condition, _ := readLineCount(reader, &numLines)
 			constr = &ctr.SumCtr{CName: name, Vars: vars, Coeffs: coeffs, Condition: condition}
 		default:
 			msg := ctrFile + ", line " + strconv.Itoa(numLines) + ": " + line + " not implemented yet"
@@ -181,20 +203,8 @@ func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
 		}
 		constraints[name] = constr
 	}
-	err = file.Close()
-	if err != nil {
-		panic(err)
-	}
-	return constraints
-}
 
-func readLine(r *bufio.Reader, n *int) string {
-	line, err := r.ReadString('\n')
-	if err != nil {
-		panic(err)
-	}
-	*n = *n + 1
-	return strings.TrimSuffix(line, "\n")
+	return constraints
 }
 
 // ParseDomains of CSP variables
@@ -203,19 +213,49 @@ func ParseDomains(domFile string) map[string]string {
 	if err != nil {
 		panic(err)
 	}
-	scanner := bufio.NewScanner(file)
-	var line string
+	defer func() {
+		if err := file.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	reader := bufio.NewReader(file)
 	m := make(map[string]string)
-	for scanner.Scan() {
-		line = scanner.Text()
+	for {
+		line, eof := readLine(reader)
+		if eof {
+			break
+		}
+
 		tks := strings.Split(line, ";")
 		variable := tks[0]
 		domain := tks[1]
 		m[variable] = domain
 	}
-	err = file.Close()
-	if err != nil {
-		panic(err)
-	}
+
 	return m
+}
+
+func readLine(r *bufio.Reader) (string, bool) {
+	line, err := r.ReadString('\n')
+	if err != nil {
+		if err == io.EOF {
+			if len(line) == 0 {
+				return "", true
+			} else {
+				panic("EOF, but line= " + line)
+			}
+		} else {
+			panic(err)
+		}
+	}
+	return strings.TrimSuffix(line, "\n"), false
+}
+
+func readLineCount(r *bufio.Reader, n *int) (string, bool) {
+	line, eof := readLine(r)
+	if !eof {
+		*n = *n + 1
+	}
+	return line, eof
 }

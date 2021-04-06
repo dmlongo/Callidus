@@ -1,6 +1,7 @@
 package ctr
 
 import (
+	"bufio"
 	"os"
 	"regexp"
 	"sort"
@@ -8,32 +9,39 @@ import (
 	"strings"
 )
 
+var arrayIDRegex = regexp.MustCompile(`^((\w)+?)((L\d+J)+)$`)
+var indicesRegex = regexp.MustCompile(`L\d+J`)
+
 // TODO maybe instead of writing to file, I could just return strings (for in-memory reasons)
 
 // CreateXCSPInstance from given constraints
 func CreateXCSPInstance(constraints []Constraint, variables map[string]string, outFile string) {
-	file, err := os.OpenFile(outFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+	file, err := os.Create(outFile)
 	if err != nil {
 		panic(err)
 	}
-	_, err = file.WriteString("<instance format=\"XCSP3\" type=\"CSP\">\n")
+	defer func() {
+		if err := file.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	w := bufio.NewWriter(file)
+	_, err = w.WriteString("<instance format=\"XCSP3\" type=\"CSP\">\n")
 	if err != nil {
 		panic(err)
 	}
-	writeVariables(file, variables)
-	writeConstraints(file, constraints)
-	_, err = file.WriteString("</instance>\n")
+	writeVariables(w, variables)
+	writeConstraints(w, constraints)
+	_, err = w.WriteString("</instance>\n")
 	if err != nil {
 		panic(err)
 	}
-	err = file.Close()
-	if err != nil {
-		panic(err)
-	}
+	w.Flush()
 }
 
-func writeVariables(file *os.File, variables map[string]string) {
-	_, err := file.WriteString("\t<variables>\n")
+func writeVariables(w *bufio.Writer, variables map[string]string) {
+	_, err := w.WriteString("\t<variables>\n")
 	if err != nil {
 		panic(err)
 	}
@@ -43,34 +51,39 @@ func writeVariables(file *os.File, variables map[string]string) {
 	}
 	sort.Strings(vars)
 	for _, v := range vars {
-		values := "\t\t<var id=\"" + v + "\"> "
-		values += variables[v]
-		values += " </var>\n"
-		_, err = file.WriteString(values)
+		w.WriteString("\t\t<var id=\"" + v + "\"> ")
+		if err != nil {
+			panic(err)
+		}
+		w.WriteString(variables[v])
+		if err != nil {
+			panic(err)
+		}
+		w.WriteString(" </var>\n")
 		if err != nil {
 			panic(err)
 		}
 	}
-	_, err = file.WriteString("\t</variables>\n")
+	_, err = w.WriteString("\t</variables>\n")
 	if err != nil {
 		panic(err)
 	}
 }
 
-func writeConstraints(file *os.File, constraints []Constraint) {
-	_, err := file.WriteString("\t<constraints>\n")
+func writeConstraints(w *bufio.Writer, constraints []Constraint) {
+	_, err := w.WriteString("\t<constraints>\n")
 	if err != nil {
 		panic(err)
 	}
 	for _, c := range constraints {
 		for _, line := range c.ToXCSP() {
-			_, err := file.WriteString("\t\t" + line + "\n")
+			_, err := w.WriteString("\t\t" + line + "\n")
 			if err != nil {
 				panic(err)
 			}
 		}
 	}
-	_, err = file.WriteString("\t</constraints>\n")
+	_, err = w.WriteString("\t</constraints>\n")
 	if err != nil {
 		panic(err)
 	}
@@ -98,21 +111,20 @@ func WriteSolution(sol Solution) string {
 	sb.WriteString("</values>\n")
 	sb.WriteString("</instantiation>\n")
 	return sb.String()
+
 }
 
 func makeVarList(sortedVars []string) []string {
 	var list []string
-	var arrayID = regexp.MustCompile(`^((\w)+?)((L\d+J)+)$`)
-	var indices = regexp.MustCompile(`L\d+J`)
 
 	var sb strings.Builder
 	for _, v := range sortedVars {
-		if arrayID.MatchString(v) {
-			tks := arrayID.FindStringSubmatch(v)
+		if arrayIDRegex.MatchString(v) {
+			tks := arrayIDRegex.FindStringSubmatch(v)
 			name := tks[1]
 			if list == nil || !strings.HasPrefix(list[len(list)-1], name+"[") {
 				sb.WriteString(name)
-				for range indices.FindAllString(v, -1) {
+				for range indicesRegex.FindAllString(v, -1) {
 					sb.WriteString("[]")
 				}
 				list = append(list, sb.String())

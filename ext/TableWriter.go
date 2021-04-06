@@ -1,6 +1,7 @@
 package ext
 
 import (
+	"bufio"
 	"os"
 	"strconv"
 	"strings"
@@ -10,10 +11,17 @@ import (
 
 // CreateSolutionTable creates a file containing the tuples of a given node
 func CreateSolutionTable(tableFile string, node *decomp.Node) {
-	table, err := os.OpenFile(tableFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+	table, err := os.Create(tableFile)
 	if err != nil {
 		panic(err)
 	}
+	defer func() {
+		if err := table.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	w := bufio.NewWriter(table)
 	var sb strings.Builder
 	for _, tup := range node.Tuples {
 		for i, v := range tup {
@@ -23,7 +31,7 @@ func CreateSolutionTable(tableFile string, node *decomp.Node) {
 			}
 		}
 		sb.WriteString("\n")
-		_, err := table.WriteString(sb.String())
+		_, err := w.WriteString(sb.String())
 		if err != nil {
 			panic(err)
 		}

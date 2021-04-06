@@ -30,6 +30,8 @@ func init() {
 	nacre = filepath.Dir(path) + "/libs/nacre"
 }
 
+var valuesRegex = regexp.MustCompile(`.*<values>(.*)</values>.*`)
+
 // SolveSubCspSeq solve the CSPs associated to a hypertree sequentially
 func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[string]ctr.Constraint, baseDir string) bool {
 	subCspFolder := makeDir(baseDir + "subs/")
@@ -63,14 +65,13 @@ func solveCSPSeq(cspFile string, numVars int, node *Node) bool {
 
 func readTuples(reader *bufio.Reader, cspFile string, arity int, node *Node) bool {
 	solFound := false
-	reg := regexp.MustCompile(`.*<values>(.*)</values>.*`)
 	for {
 		line, err := reader.ReadString('\n')
 		if err == io.EOF && len(line) == 0 {
 			break
 		}
 		if strings.HasPrefix(line, "v") {
-			matches := reg.FindStringSubmatch(line)
+			matches := valuesRegex.FindStringSubmatch(line)
 			if len(matches) < 2 {
 				panic(cspFile + ", bad values= " + line)
 			}
@@ -168,7 +169,6 @@ func fetchTuples(reader *bufio.Reader, cspFile string, arity int, quit <-chan bo
 	out := make(chan []int) // TODO buffer maybe?
 	go func() {
 		defer close(out)
-		reg := regexp.MustCompile(`.*<values>(.*)</values>.*`)
 		for {
 			select {
 			case <-quit:
@@ -179,7 +179,7 @@ func fetchTuples(reader *bufio.Reader, cspFile string, arity int, quit <-chan bo
 					return
 				}
 				if strings.HasPrefix(line, "v") {
-					matches := reg.FindStringSubmatch(line)
+					matches := valuesRegex.FindStringSubmatch(line)
 					if len(matches) < 2 {
 						panic(cspFile + ", bad values= " + line)
 					}
