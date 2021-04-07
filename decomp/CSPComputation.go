@@ -2,7 +2,6 @@ package decomp
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -52,13 +51,8 @@ func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[st
 
 func solveCSPSeq(cspFile string, numVars int, node *Node) bool {
 	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		panic(err)
-	}
-	if err := cmd.Start(); err != nil {
 		panic(err)
 	}
 	if err := cmd.Start(); err != nil {
@@ -67,7 +61,9 @@ func solveCSPSeq(cspFile string, numVars int, node *Node) bool {
 
 	res := readTuples(bufio.NewReader(stdout), cspFile, numVars, node)
 	if err := cmd.Wait(); err != nil {
-		panic(fmt.Sprintf("nacre failed: %v: %s", err, stderr.String()))
+		if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() != 40 {
+			panic(fmt.Sprintf("nacre failed: %v:", err))
+		}
 	}
 	return res
 }
@@ -147,13 +143,8 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 
 func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit <-chan bool) {
 	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		panic(err)
-	}
-	if err := cmd.Start(); err != nil {
 		panic(err)
 	}
 	if err := cmd.Start(); err != nil {
@@ -176,7 +167,9 @@ func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit 
 		}
 	}
 	if err := cmd.Wait(); err != nil {
-		panic(fmt.Sprintf("nacre failed: %v: %s", err, stderr.String()))
+		if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() != 40 {
+			panic(fmt.Sprintf("nacre failed: %v:", err))
+		}
 	}
 	sat <- res
 }
