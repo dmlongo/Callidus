@@ -2,6 +2,7 @@ package decomp
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -144,6 +145,8 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit <-chan bool) {
 	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
 	stdout, err := cmd.StdoutPipe()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	if err != nil {
 		panic(err)
 	}
@@ -168,7 +171,7 @@ func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit 
 	}
 	if err := cmd.Wait(); err != nil {
 		if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() != 40 {
-			panic(fmt.Sprintf("nacre failed: %v:", err))
+			panic(fmt.Sprintf("nacre failed on %s: %v: %s", cspFile, err, stderr.String()))
 		}
 	}
 	sat <- res

@@ -186,11 +186,12 @@ func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
 		case "ElementCtr":
 			name, _ = readLineCount(reader, &numLines)
 			vars, _ := readLineCount(reader, &numLines)
+			list, _ := readLineCount(reader, &numLines)
 			startIndex, _ := readLineCount(reader, &numLines)
 			index, _ := readLineCount(reader, &numLines)
 			rank, _ := readLineCount(reader, &numLines)
 			condition, _ := readLineCount(reader, &numLines)
-			constr = &ctr.ElementCtr{CName: name, Vars: vars, StartIndex: startIndex, Index: index, Rank: rank, Condition: condition}
+			constr = &ctr.ElementCtr{CName: name, Vars: vars, List: list, StartIndex: startIndex, Index: index, Rank: rank, Condition: condition}
 		case "SumCtr":
 			name, _ = readLineCount(reader, &numLines)
 			vars, _ := readLineCount(reader, &numLines)

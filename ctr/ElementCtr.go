@@ -7,6 +7,7 @@ type ElementCtr struct {
 	CName      string
 	Vars       string
 	strVars    []string
+	List       string
 	StartIndex string
 	Index      string
 	Rank       string
@@ -31,7 +32,7 @@ func (c *ElementCtr) Variables() []string {
 func (c *ElementCtr) ToXCSP() []string {
 	out := make([]string, 0, 5)
 	out = append(out, "<element>")
-	out = append(out, "\t<list startIndex=\""+c.StartIndex+"\"> "+c.Vars+" </list>")
+	out = append(out, "\t<list startIndex=\""+c.StartIndex+"\"> "+c.List+" </list>")
 	out = append(out, "\t<index rank=\""+c.Rank+"\"> "+c.Index+" </index>")
 	out = append(out, "\t<value> "+c.Condition+" </value>")
 	out = append(out, "</element>")
