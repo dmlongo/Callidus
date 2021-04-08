@@ -9,9 +9,6 @@ import (
 	"strings"
 )
 
-var arrayIDRegex = regexp.MustCompile(`^((\w)+?)((L\d+J)+)$`)
-var indicesRegex = regexp.MustCompile(`L\d+J`)
-
 // TODO maybe instead of writing to file, I could just return strings (for in-memory reasons)
 
 // CreateXCSPInstance from given constraints
@@ -114,7 +111,32 @@ func WriteSolution(sol Solution) string {
 
 }
 
+var arrayIDRegex = regexp.MustCompile(`^((\w)+?)((L\d+J)+)$`)
+var indicesRegex = regexp.MustCompile(`L\d+J`)
+
 func makeVarList(sortedVars []string) []string {
+	var list []string
+
+	var sb strings.Builder
+	for _, v := range sortedVars {
+		if tks := arrayIDRegex.FindStringSubmatch(v); tks != nil {
+			varName := tks[1]
+			sb.WriteString(varName)
+			indices := tks[3]
+			indices = strings.ReplaceAll(indices, "L", "[")
+			indices = strings.ReplaceAll(indices, "J", "]")
+			sb.WriteString(indices)
+			list = append(list, sb.String())
+			sb.Reset()
+		} else {
+			list = append(list, v)
+		}
+	}
+
+	return list
+}
+
+func makeVarListCompressed(sortedVars []string) []string {
 	var list []string
 
 	var sb strings.Builder

@@ -30,9 +30,9 @@ func CheckSolution(csp string, solution ctr.Solution) (string, bool) {
 	out, err := exec.Command("java", "-cp", xcsp3Tools, "org.xcsp.parser.callbacks.SolutionChecker", csp, xcspSol).Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
-			panic(fmt.Sprintf("xcsp3-tools failed: %v: %s", err, ee.Stderr))
+			panic(fmt.Sprintf("xcsp3-tools failed: %v: %s\n%s", err, out, ee.Stderr))
 		} else {
-			panic(fmt.Sprintf("xcsp3-tools failed: %v", err))
+			panic(fmt.Sprintf("xcsp3-tools failed: %v: %s", err, out))
 		}
 	}
 

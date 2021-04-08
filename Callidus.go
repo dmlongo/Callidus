@@ -57,6 +57,8 @@ func main() {
 		fmt.Println("done in", durDecomp)
 	}
 
+	// TODO add check if decomp was computed successfully
+
 	fmt.Print("Parsing hypertree, domains and constraints... ")
 	startParsing := time.Now()
 
@@ -151,8 +153,7 @@ func main() {
 		startCheckSol := time.Now()
 		for _, sol := range allSolutions {
 			if err, ok := ext.CheckSolution(csp, sol); !ok {
-				panic(err)
-				//panic(fmt.Sprintf("%v is not a solution.", sol))
+				panic(fmt.Sprintf("%v is not a solution: %v", sol, err))
 			}
 		}
 		fmt.Println("done in", time.Since(startCheckSol))
