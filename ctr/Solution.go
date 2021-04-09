@@ -35,6 +35,18 @@ func (sol Solution) Print() {
 	fmt.Println(sb.String())
 }
 
+func (sol Solution) Equals(oth Solution) bool {
+	if len(sol) != len(oth) {
+		return false
+	}
+	for k, v := range sol {
+		if vOth, ok := oth[k]; !ok || vOth != v {
+			return false
+		}
+	}
+	return true
+}
+
 /*
 func (sol Solution) WriteToFile(out string) {
 	err := os.RemoveAll(out)

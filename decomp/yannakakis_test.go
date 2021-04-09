@@ -3,45 +3,59 @@ package decomp
 import (
 	"sync"
 	"testing"
+
+	"github.com/dmlongo/callidus/ctr"
 )
 
 func TestSeq1(t *testing.T) {
-	input, partial, output := test1Data()
+	input, partial, output, sols := test1Data()
 	if !equals(YannakakisSeq(input), partial) {
 		t.Error("y(input) != partial")
 	}
 	if !equals(FullyReduceRelationsSeq(partial), output) {
 		t.Error("y(partial) != output")
+	}
+	if !solEquals(ComputeAllSolutions(output), sols) {
+		t.Error("y(output) != solutions")
 	}
 }
 
 func TestSeq2(t *testing.T) {
-	input, partial, output := test2Data()
+	input, partial, output, sols := test2Data()
 	if !equals(YannakakisSeq(input), partial) {
 		t.Error("y(input) != partial")
 	}
 	if !equals(FullyReduceRelationsSeq(partial), output) {
 		t.Error("y(partial) != output")
 	}
+	if !solEquals(ComputeAllSolutions(output), sols) {
+		t.Error("y(output) != solutions")
+	}
 }
 
 func TestPar1(t *testing.T) {
-	input, partial, output := test1Data()
+	input, partial, output, sols := test1Data()
 	if !equals(YannakakisPar(input), partial) {
 		t.Error("y(input) != partial")
 	}
 	if !equals(FullyReduceRelationsPar(partial), output) {
 		t.Error("y(partial) != output")
+	}
+	if !solEquals(ComputeAllSolutions(output), sols) {
+		t.Error("y(output) != solutions")
 	}
 }
 
 func TestPar2(t *testing.T) {
-	input, partial, output := test2Data()
+	input, partial, output, sols := test2Data()
 	if !equals(YannakakisPar(input), partial) {
 		t.Error("y(input) != partial")
 	}
 	if !equals(FullyReduceRelationsPar(partial), output) {
 		t.Error("y(partial) != output")
+	}
+	if !solEquals(ComputeAllSolutions(output), sols) {
+		t.Error("y(output) != solutions")
 	}
 }
 
@@ -51,6 +65,26 @@ func equals(node1 *Node, node2 *Node) bool {
 	}
 	for i := range node1.Children {
 		if !equals(node1.Children[i], node2.Children[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func solEquals(sols1 []ctr.Solution, sols2 []ctr.Solution) bool {
+	return subsetOf(sols1, sols2) && subsetOf(sols2, sols1)
+}
+
+func subsetOf(sols1 []ctr.Solution, sols2 []ctr.Solution) bool {
+	for _, s1 := range sols1 {
+		found := false
+		for _, s2 := range sols2 {
+			if s1.Equals(s2) {
+				found = true
+				break
+			}
+		}
+		if !found {
 			return false
 		}
 	}
@@ -77,7 +111,7 @@ func samePossibleValues(node1 *Node, node2 *Node) bool {
 	return true
 }
 
-func test1Data() (*Node, *Node, *Node) {
+func test1Data() (*Node, *Node, *Node, []ctr.Solution) {
 	//creating input
 	dInput := &Node{ID: 1, Tuples: Relation{{3, 8}, {3, 7}, {5, 7}, {6, 7}}, Lock: &sync.Mutex{}}
 	dInput.SetBag([]string{"Y", "P"})
@@ -117,10 +151,43 @@ func test1Data() (*Node, *Node, *Node) {
 	rOutput.AddChild(sOutput)
 	rOutput.AddChild(tOutput)
 
-	return dInput, dPartial, dOutput
+	s1 := map[string]int{
+		"P": 7,
+		"U": 9,
+		"V": 9,
+		"W": 4,
+		"Y": 3,
+		"Z": 8,
+	}
+	s2 := map[string]int{
+		"P": 8,
+		"U": 9,
+		"V": 9,
+		"W": 4,
+		"Y": 3,
+		"Z": 8,
+	}
+	s3 := map[string]int{
+		"P": 7,
+		"U": 3,
+		"V": 9,
+		"W": 8,
+		"Y": 3,
+		"Z": 8,
+	}
+	s4 := map[string]int{
+		"P": 8,
+		"U": 3,
+		"V": 9,
+		"W": 8,
+		"Y": 3,
+		"Z": 8,
+	}
+
+	return dInput, dPartial, dOutput, []ctr.Solution{s1, s2, s3, s4}
 }
 
-func test2Data() (*Node, *Node, *Node) {
+func test2Data() (*Node, *Node, *Node, []ctr.Solution) {
 	//creating input
 	dInput := &Node{ID: 1, Tuples: Relation{{3, 8}, {3, 7}, {5, 7}, {6, 7}}, Lock: &sync.Mutex{}}
 	dInput.SetBag([]string{"Y", "P"})
@@ -178,5 +245,26 @@ func test2Data() (*Node, *Node, *Node) {
 	rOutput.AddChild(tOutput)
 	aOutput.AddChild(bOutput)
 
-	return dInput, dPartial, dOutput
+	s1 := map[string]int{
+		"A": 1,
+		"C": 4,
+		"P": 8,
+		"U": 3,
+		"V": 9,
+		"W": 8,
+		"Y": 3,
+		"Z": 8,
+	}
+	s2 := map[string]int{
+		"A": 1,
+		"C": 4,
+		"P": 8,
+		"U": 9,
+		"V": 9,
+		"W": 4,
+		"Y": 3,
+		"Z": 8,
+	}
+
+	return dInput, dPartial, dOutput, []ctr.Solution{s1, s2}
 }
