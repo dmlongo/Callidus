@@ -31,7 +31,7 @@ var baseDir string
 func main() {
 	setFlags()
 
-	fmt.Println("Callidus starts!")
+	fmt.Printf("Callidus starts solving %s!\n", cspName)
 	start := time.Now()
 
 	fmt.Print("Creating hypergraph... ")
@@ -57,7 +57,9 @@ func main() {
 		fmt.Println("done in", durDecomp)
 	}
 
-	// TODO add check if decomp was computed successfully
+	if rawHypertree == "" {
+		panic(fmt.Sprintf("Could not find any decomposition in %vs", decompTime))
+	}
 
 	fmt.Print("Parsing hypertree, domains and constraints... ")
 	startParsing := time.Now()
