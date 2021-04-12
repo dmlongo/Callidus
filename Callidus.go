@@ -48,8 +48,8 @@ func main() {
 		fmt.Print("Decomposing hypergraph... ")
 		startDecomposition = time.Now()
 		if htDebug {
-			ht = baseDir + cspName + ".ht"
-			rawHypertree = ext.DecomposeToFile(hg, ht, decompTime)
+			//ht = baseDir + cspName + ".ht"
+			rawHypertree = ext.DecomposeToFile(hg, baseDir+cspName+".ht", decompTime)
 		} else {
 			rawHypertree = ext.Decompose(hg, decompTime)
 		}
@@ -57,7 +57,7 @@ func main() {
 		fmt.Println("done in", durDecomp)
 	}
 
-	if rawHypertree == "" {
+	if ht == "" && rawHypertree == "" {
 		panic(fmt.Sprintf("Could not find any decomposition in %vs", decompTime))
 	}
 

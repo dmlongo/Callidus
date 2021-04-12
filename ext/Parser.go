@@ -56,8 +56,10 @@ func ParseDecompFromFile(htPath string) (*decomp.Node, []*decomp.Node) {
 			if len(res) < 3 {
 				panic("Cannot parse node label in line" + strconv.Itoa(numLines) + ": " + line)
 			}
-			edges := strings.Split(res[1], ", ")
-			variables := strings.Split(res[2], ", ")
+			edges := strings.Split(res[1], ",")
+			trimSpaces(edges)
+			variables := strings.Split(res[2], ",")
+			trimSpaces(variables)
 			sort.Strings(variables)
 			node := decomp.Node{ID: id, Lock: &sync.Mutex{}}
 			node.SetBag(variables)
@@ -92,6 +94,12 @@ func ParseDecompFromFile(htPath string) (*decomp.Node, []*decomp.Node) {
 	return root, onlyNodes
 }
 
+func trimSpaces(arr []string) {
+	for i := 0; i < len(arr); i++ {
+		arr[i] = strings.TrimSpace(arr[i])
+	}
+}
+
 // ParseDecomp from a string
 func ParseDecomp(htRaw *string) (*decomp.Node, []*decomp.Node) {
 	output := strings.Split(*htRaw, "\n")
@@ -106,7 +114,8 @@ func ParseDecomp(htRaw *string) (*decomp.Node, []*decomp.Node) {
 			if len(res) < 2 {
 				panic("Cannot parse bag in: " + line)
 			}
-			variables := strings.Split(res[1], ", ")
+			variables := strings.Split(res[1], ",")
+			trimSpaces(variables)
 			sort.Strings(variables)
 			var nodeFather *decomp.Node = nil
 			if len(fathersQueue) > 0 {
@@ -125,7 +134,8 @@ func ParseDecomp(htRaw *string) (*decomp.Node, []*decomp.Node) {
 			if len(res) < 2 {
 				panic("Cannot parse cover in: " + line)
 			}
-			cov := strings.Split(res[1], ", ")
+			cov := strings.Split(res[1], ",")
+			trimSpaces(cov)
 			n := onlyNodes[idNodes-1]
 			n.SetCover(cov)
 		} else if strings.Contains(line, "Children") {
