@@ -23,7 +23,7 @@ func CreateSolutionTable(tableFile string, node *decomp.Node) {
 
 	w := bufio.NewWriter(table)
 	var sb strings.Builder
-	for _, tup := range node.Tuples {
+	for _, tup := range node.Tuples.Tuples() {
 		for i, v := range tup {
 			sb.WriteString(strconv.Itoa(v))
 			if i < len(tup)-1 {

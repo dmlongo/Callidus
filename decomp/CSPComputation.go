@@ -89,7 +89,7 @@ func readTuples(reader *bufio.Reader, cspFile string, arity int, node *Node) boo
 				}
 				tup[i] = v
 			}
-			node.Tuples = append(node.Tuples, tup)
+			node.Tuples.AddTuple(tup)
 			solFound = true
 		}
 	}
@@ -166,7 +166,7 @@ func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit 
 			return
 		default:
 			res = true
-			node.Tuples = append(node.Tuples, tup)
+			node.Tuples.AddTuple(tup)
 		}
 	}
 	if err := cmd.Wait(); err != nil {

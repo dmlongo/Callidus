@@ -9,20 +9,26 @@ import (
 )
 
 // YannakakisSeq performs the sequential Yannakakis' algorithm
-func YannakakisSeq(root *Node) *Node {
+func YannakakisSeq(root *Node) (*Node, bool) {
 	if len(root.Children) != 0 {
-		bottomUpSeq(root)
+		return bottomUpSeq(root)
 	}
-	return root
+	return root, true
 }
 
-func bottomUpSeq(curr *Node) {
+func bottomUpSeq(curr *Node) (*Node, bool) {
 	for _, child := range curr.Children {
-		bottomUpSeq(child)
+		if _, sat := bottomUpSeq(child); !sat {
+			return nil, false
+		}
 	}
 	if curr.Parent != nil {
-		semiJoin(curr.Parent, curr)
+		Semijoin(curr.Parent.Tuples, curr.Tuples)
+		if curr.Parent.Tuples.Empty() {
+			return nil, false
+		}
 	}
+	return curr, true
 }
 
 // YannakakisPar performs the parrallel Yannakakis' algorithm
@@ -49,64 +55,9 @@ func bottomUpPar(curr *Node) {
 	wg.Wait()
 	if curr.Parent != nil {
 		curr.Parent.Lock.Lock()
-		semiJoin(curr.Parent, curr)
+		Semijoin(curr.Parent.Tuples, curr.Tuples)
 		curr.Parent.Lock.Unlock()
 	}
-}
-
-func semiJoin(left *Node, right *Node) {
-	joinIdx := findJoinIndices(left, right)
-
-	var tupToDel []int
-	for i, leftTup := range left.Tuples {
-		delete := true
-		for _, rightTup := range right.Tuples {
-			if match(leftTup, rightTup, joinIdx) {
-				delete = false
-				break
-			}
-		}
-		if delete {
-			tupToDel = append(tupToDel, i)
-		}
-	}
-
-	update(left, tupToDel)
-}
-
-func match(left []int, right []int, joinIndex [][]int) bool {
-	for _, z := range joinIndex {
-		if left[z[0]] != right[z[1]] {
-			return false
-		}
-	}
-	return true
-}
-
-func update(n *Node, toDel []int) { // TODO shouldn't this method be synchronized?
-	if len(toDel) > 0 {
-		newSize := len(n.Tuples) - len(toDel)
-		newTuples := make(Relation, 0, newSize)
-		if newSize > 0 { // TODO what does newSize == 0 mean? unsat?
-			i := 0
-			for _, j := range toDel {
-				newTuples = append(newTuples, n.Tuples[i:j]...)
-				i = j + 1
-			}
-			newTuples = append(newTuples, n.Tuples[i:]...)
-		}
-		n.Tuples = newTuples
-	}
-}
-
-func findJoinIndices(left *Node, right *Node) [][]int {
-	var out [][]int
-	for iLeft, varLeft := range left.Bag() {
-		if iRight := right.Position(varLeft); iRight >= 0 {
-			out = append(out, []int{iLeft, iRight})
-		}
-	}
-	return out
 }
 
 // FullyReduceRelationsSeq after first bottom-up reduction sequentially
@@ -119,7 +70,7 @@ func FullyReduceRelationsSeq(root *Node) *Node {
 
 func topDownSeq(curr *Node) {
 	for _, child := range curr.Children {
-		semiJoin(child, curr)
+		Semijoin(child.Tuples, curr.Tuples)
 		topDownSeq(child)
 	}
 }
@@ -136,7 +87,7 @@ func topDownPar(curr *Node) {
 	var wg *sync.WaitGroup = &sync.WaitGroup{}
 	wg.Add(len(curr.Children))
 	for _, child := range curr.Children {
-		semiJoin(child, curr)
+		Semijoin(child.Tuples, curr.Tuples)
 		go func(c *Node) {
 			topDownPar(c)
 			wg.Done()
@@ -153,7 +104,7 @@ func ComputeAllSolutions(root *Node) []ctr.Solution {
 	fmt.Print("(Conversion from Relation to Solution... ")
 	startConversion := time.Now()
 	var allSolutions []ctr.Solution
-	for _, tup := range rel {
+	for _, tup := range rel.Tuples() {
 		sol := make(ctr.Solution)
 		for i, v := range vars {
 			sol[v] = tup[i]
@@ -170,45 +121,9 @@ func computeBottomUp(curr *Node) ([]string, Relation) {
 		child.SetBag(childBag)
 		child.Tuples = childTuples
 
-		currBag, currTuples := join(curr, child)
-		curr.SetBag(currBag)
-		curr.Tuples = currTuples
+		currRel := Join(curr.Tuples, child.Tuples)
+		curr.SetBag(currRel.Attributes())
+		curr.Tuples = currRel
 	}
 	return curr.bag, curr.Tuples
-}
-
-func join(left *Node, right *Node) (outVars []string, outRel Relation) {
-	outVars = newBag(left.bag, left.bagSet, right.bag)
-	joinIdx := findJoinIndices(left, right)
-	for _, lTup := range left.Tuples {
-		for _, rTup := range right.Tuples {
-			if match(lTup, rTup, joinIdx) {
-				outTup := newTuple(outVars, lTup, rTup, right.bagSet)
-				outRel = append(outRel, outTup)
-			}
-		}
-	}
-
-	return
-}
-
-func newBag(bagL []string, bagSetL map[string]int, bagR []string) []string {
-	var out []string
-	out = append(out, bagL...)
-	for _, v := range bagR {
-		if _, ok := bagSetL[v]; !ok {
-			out = append(out, v)
-		}
-	}
-	return out
-}
-
-func newTuple(vars []string, lTup []int, rTup []int, rBagSet map[string]int) []int {
-	out := make([]int, 0, len(vars))
-	out = append(out, lTup...)
-	for _, v := range vars[len(lTup):] {
-		i := rBagSet[v]
-		out = append(out, rTup[i])
-	}
-	return out
 }

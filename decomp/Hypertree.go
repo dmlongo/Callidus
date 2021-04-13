@@ -7,9 +7,6 @@ import (
 
 // TODO make it really a tree!
 
-// Relation represent a collection of multiple tuples
-type Relation [][]int
-
 // Hypertree is a slice of nodes in the tree
 type Hypertree []*Node
 
@@ -26,6 +23,14 @@ type Node struct {
 
 	Tuples Relation
 	Lock   *sync.Mutex
+}
+
+func NewNode(id int, vars []string, edges []string) *Node {
+	n := Node{ID: id}
+	n.SetBag(vars)
+	n.SetCover(edges)
+	n.Tuples = NewRelation(vars)
+	return &n
 }
 
 // AddChild to this node
@@ -100,11 +105,9 @@ func (tree *Hypertree) attach(e Edge, maxID *int) {
 		if subset(e.vertices, n.bagSet) {
 			err = false
 			*maxID = *maxID + 1
-			m := Node{ID: *maxID, Parent: n}
-			m.SetBag(e.vertices)
-			m.SetCover([]string{e.name})
-			n.AddChild(&m)
-			*tree = append(*tree, &m)
+			m := NewNode(*maxID, e.vertices, []string{e.name})
+			n.AddChild(m)
+			*tree = append(*tree, m)
 			break
 		}
 	}

@@ -124,7 +124,7 @@ func main() {
 		}
 	}
 
-	fmt.Print("Running Yannakakis... ")
+	fmt.Print("Running Yannakakis... ") // TODO the csp can be unsat also here
 	startYannakakis := time.Now()
 	if ySeq {
 		decomp.YannakakisSeq(root)

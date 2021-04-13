@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/dmlongo/callidus/ctr"
 	"github.com/dmlongo/callidus/decomp"
@@ -61,11 +60,9 @@ func ParseDecompFromFile(htPath string) (*decomp.Node, []*decomp.Node) {
 			variables := strings.Split(res[2], ",")
 			trimSpaces(variables)
 			sort.Strings(variables)
-			node := decomp.Node{ID: id, Lock: &sync.Mutex{}}
-			node.SetBag(variables)
-			node.SetCover(edges)
-			nodes[id] = &node
-			onlyNodes = append(onlyNodes, &node)
+			node := decomp.NewNode(id, variables, edges)
+			nodes[id] = node
+			onlyNodes = append(onlyNodes, node)
 		} else if strings.Contains(line, "edge") {
 			line, _ = readLineCount(reader, &numLines)
 			res := regexEdgeSource.FindStringSubmatch(line)
@@ -121,14 +118,13 @@ func ParseDecomp(htRaw *string) (*decomp.Node, []*decomp.Node) {
 			if len(fathersQueue) > 0 {
 				nodeFather = fathersQueue[len(fathersQueue)-1]
 			}
-			node := decomp.Node{ID: idNodes, Parent: nodeFather, Lock: &sync.Mutex{}}
-			node.SetBag(variables)
+			node := decomp.NewNode(idNodes, variables, nil)
 			if nodeFather != nil {
-				nodeFather.AddChild(&node)
+				nodeFather.AddChild(node)
 			}
-			nodes[idNodes] = &node
+			nodes[idNodes] = node
 			idNodes++
-			onlyNodes = append(onlyNodes, &node)
+			onlyNodes = append(onlyNodes, node)
 		} else if strings.Contains(line, "Cover") {
 			res := regexCover.FindStringSubmatch(line)
 			if len(res) < 2 {
