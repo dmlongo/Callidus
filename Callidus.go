@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -18,9 +19,14 @@ import (
 var csp, ht, out string
 var decompTime string
 var subSeq, ySeq bool
-var htDebug, tabDebug, subDebug, solDebug bool
-var subInMem, printSol, printTimes bool
-var contSols int
+var htDebug, tabDebug, subDebug, memDebug, solDebug bool
+var subInMem, printRel, printSol, printTimes bool
+var all bool
+
+var start time.Time
+var durs []time.Duration
+var solutions []ctr.Solution
+var numSols int
 
 const wrkdir = "wrkdir"
 
@@ -29,16 +35,18 @@ var cspName string
 var baseDir string
 
 func main() {
+	defer cleanup()
 	setFlags()
 
 	fmt.Printf("Callidus starts solving %s!\n", cspName)
-	start := time.Now()
+	start = time.Now()
 
 	fmt.Print("Creating hypergraph... ")
 	startConversion := time.Now()
 	hypergraph := ext.Convert(csp, baseDir)
 	durConversion := time.Since(startConversion)
 	fmt.Println("done in", durConversion)
+	durs = append(durs, durConversion)
 
 	var rawHypertree string
 	var startDecomposition time.Time
@@ -56,9 +64,11 @@ func main() {
 		durDecomp = time.Since(startDecomposition)
 		fmt.Println("done in", durDecomp)
 	}
+	durs = append(durs, durDecomp)
 
 	if ht == "" && rawHypertree == "" {
-		panic(fmt.Sprintf("Could not find any decomposition in %vs", decompTime))
+		fmt.Printf("Could not find any decomposition in %vs\n", decompTime)
+		return
 	}
 
 	fmt.Print("Parsing hypertree, domains and constraints... ")
@@ -68,6 +78,7 @@ func main() {
 	var root *decomp.Node
 	if ht != "" {
 		root, tree = ext.ParseDecompFromFile(ht)
+		// TODO check if decomp is correct for hg
 	} else {
 		root, tree = ext.ParseDecomp(&rawHypertree)
 	}
@@ -83,13 +94,17 @@ func main() {
 
 	durParsing := time.Since(startParsing)
 	fmt.Println("done in", durParsing)
+	durs = append(durs, durParsing)
 
-	//go func() {
-	//	for {
-	//		PrintMemUsage()
-	//		time.Sleep(5 * time.Second)
-	//	}
-	//}()
+	if memDebug {
+		go func() {
+			for {
+				PrintMemUsage()
+				time.Sleep(5 * time.Second)
+			}
+		}()
+	}
+
 	var satisfiable bool
 	fmt.Print("Solving sub-CSPs... ")
 	startSubComp := time.Now()
@@ -100,14 +115,12 @@ func main() {
 	}
 	durSubComp := time.Since(startSubComp)
 	fmt.Println("done in", durSubComp)
+	durs = append(durs, durSubComp)
 	if !satisfiable {
-		fmt.Println("NO SOLUTIONS")
-		if printTimes {
-			durs := []time.Duration{durConversion, durDecomp, durParsing, durSubComp, 0, 0, time.Since(start)}
-			printDurations(durs)
-		}
+		printOutput(satisfiable)
 		return
 	}
+
 	if tabDebug {
 		tablesFolder := baseDir + "tables/"
 		err := os.RemoveAll(tablesFolder)
@@ -124,6 +137,10 @@ func main() {
 		}
 	}
 
+	if printRel {
+		decomp.PrintTreeRelations(root)
+	}
+
 	fmt.Print("Running Yannakakis... ") // TODO the csp can be unsat also here
 	startYannakakis := time.Now()
 	if ySeq {
@@ -133,27 +150,49 @@ func main() {
 	}
 	durYannakakis := time.Since(startYannakakis)
 	fmt.Println("done in", durYannakakis)
-	durSolving := time.Since(start)
-	fmt.Println("Callidus solved", csp, "in", durSolving)
-
-	fmt.Print("Computing all solutions... ")
-	startComputeAll := time.Now()
-	if ySeq {
-		decomp.FullyReduceRelationsSeq(root)
-	} else {
-		decomp.FullyReduceRelationsPar(root)
+	durs = append(durs, durYannakakis)
+	if !satisfiable {
+		printOutput(satisfiable)
+		return
 	}
-	allSolutions := decomp.ComputeAllSolutions(root) // TODO make a parallel version of this
-	durComputeAll := time.Since(startComputeAll)
-	durSolvingAll := time.Since(start)
-	contSols = len(allSolutions)
-	fmt.Println("done in", durComputeAll)
-	fmt.Println("Callidus found", contSols, "solutions in", durSolvingAll)
+
+	if printRel {
+		decomp.PrintTreeRelations(root)
+	}
+
+	if all {
+		fmt.Print("Computing all solutions... ")
+		startComputeAll := time.Now()
+		if ySeq {
+			decomp.FullyReduceRelationsSeq(root)
+		} else {
+			decomp.FullyReduceRelationsPar(root)
+		}
+
+		if printRel {
+			decomp.PrintTreeRelations(root)
+		}
+
+		if ySeq {
+			solutions = decomp.ComputeAllSolutionsSeq(root)
+		} else {
+			solutions = decomp.ComputeAllSolutionsPar(root)
+		}
+		durComputeAll := time.Since(startComputeAll)
+		fmt.Println("done in", durComputeAll)
+		durs = append(durs, durComputeAll)
+
+		if printRel {
+			decomp.PrintTreeRelations(root)
+		}
+	}
+
+	printOutput(true)
 
 	if solDebug {
-		fmt.Print("Checking ", contSols, " solutions... ")
+		fmt.Print("Checking ", numSols, " solutions... ")
 		startCheckSol := time.Now()
-		for _, sol := range allSolutions {
+		for _, sol := range solutions {
 			if err, ok := ext.CheckSolution(csp, sol); !ok {
 				panic(fmt.Sprintf("%v is not a solution: %v", sol, err))
 			}
@@ -161,44 +200,52 @@ func main() {
 		fmt.Println("done in", time.Since(startCheckSol))
 	}
 
-	if printSol {
-		startPrinting := time.Now()
-		if len(allSolutions) > 0 {
-			for _, sol := range allSolutions {
-				sol.Print()
-			}
-		} else {
-			fmt.Println(csp, " has no solutions")
-		}
-		fmt.Println("Printing done in", time.Since(startPrinting))
-	}
-
 	if out != "" {
 		// TODO write to out
 	}
-
-	if printTimes {
-		durs := []time.Duration{durConversion, durDecomp, durParsing, durSubComp, durYannakakis, durComputeAll, durSolvingAll}
-		printDurations(durs)
-	}
-
-	if !subDebug {
-		err := os.RemoveAll(baseDir)
-		if err != nil {
-			panic(err)
-		}
-	}
 }
 
-func printDurations(durations []time.Duration) {
-	var sb strings.Builder
-	for _, d := range durations {
-		//sb.WriteString(d.String())
-		sb.WriteString(strconv.Itoa(int(d.Milliseconds())))
-		sb.WriteString(";")
+func printOutput(sat bool) {
+	durCallidus := time.Since(start)
+	numSols = len(solutions)
+
+	if !all {
+		if !sat {
+			fmt.Println(csp, "has no solutions")
+		} else {
+			fmt.Println(csp, "has at least one solution")
+		}
+		fmt.Println("Callidus solved", csp, "in", durCallidus)
+	} else {
+		fmt.Println("Callidus found", numSols, "solutions in", durCallidus)
 	}
-	sb.WriteString(strconv.Itoa(contSols))
-	fmt.Println(sb.String())
+
+	if printTimes {
+		//durs := []time.Duration{durConversion, durDecomp, durParsing, durSubComp, durYannakakis, durComputeAll, durSolvingAll}
+		for i := len(durs); i < 6; i++ {
+			durs = append(durs, 0)
+		}
+		durs = append(durs, durCallidus)
+
+		var sb strings.Builder
+		for _, d := range durs {
+			sb.WriteString(strconv.Itoa(int(d.Milliseconds())))
+			sb.WriteString(";")
+		}
+
+		if !all {
+			if !sat {
+				sb.WriteString("n")
+			} else {
+				sb.WriteString("y")
+			}
+		} else {
+			sb.WriteString(strconv.Itoa(numSols))
+		}
+
+		fmt.Println("convert;decomp;parsing;subcsp;yanna;compall;total;sols")
+		fmt.Println(sb.String())
+	}
 }
 
 func setFlags() {
@@ -209,13 +256,16 @@ func setFlags() {
 	flagSet.StringVar(&ht, "ht", "", "Path to a decomposition of the CSP to solve (GML format)")
 	flagSet.StringVar(&out, "out", "", "Save the solutions of the CSP into the specified file")
 	flagSet.StringVar(&decompTime, "decompTime", "3600", "Set a timeout (seconds) for computing a decomposition of the CSP")
+	flagSet.BoolVar(&all, "all", false, "Compute all solutions of the CSP")
 	flagSet.BoolVar(&htDebug, "htDebug", false, "Write hypertree on disk for debug (false if -ht is set)")
 	flagSet.BoolVar(&subDebug, "subDebug", false, "Write sub-CSP files on disk for debug") // TODO update
 	flagSet.BoolVar(&tabDebug, "tabDebug", false, "Save solutions of sb-CSPs on disk for debug")
+	flagSet.BoolVar(&memDebug, "memDebug", false, "Print memory usage every 5sseconds")
 	flagSet.BoolVar(&subInMem, "subInMem", false, "Activate in-memory computation of sub-CSPs")
 	flagSet.BoolVar(&subSeq, "subSeq", false, "Activate sequential computation of sub-CSPs")
 	flagSet.BoolVar(&ySeq, "ySeq", false, "Use sequential Yannakakis' algorithm")
 	flagSet.BoolVar(&solDebug, "solDebug", false, "Check solutions of the CSP")
+	flagSet.BoolVar(&printRel, "printRel", false, "Print relations at every step of the CSP resolution")
 	flagSet.BoolVar(&printSol, "printSol", false, "Print solutions of the CSP")
 	flagSet.BoolVar(&printTimes, "printTimes", false, "Print times of each resolution phase")
 
@@ -275,5 +325,29 @@ func setFlags() {
 		panic(err)
 	}
 
-	contSols = 0
+	numSols = 0
+}
+
+// PrintMemUsage prints the memory usage
+func PrintMemUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
+	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
+	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
+}
+
+func cleanup() {
+	if !subDebug {
+		err := os.RemoveAll(baseDir)
+		if err != nil {
+			panic(err)
+		}
+	}
 }

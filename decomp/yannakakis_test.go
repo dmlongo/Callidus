@@ -15,10 +15,10 @@ func TestSeq1(t *testing.T) {
 		}
 		t.Error("y(input) != partial")
 	}
-	if !equals(FullyReduceRelationsSeq(partial), output) {
+	if !equals(FullyReduceRelationsSeq(input), output) {
 		t.Error("y(partial) != output")
 	}
-	if !solEquals(ComputeAllSolutions(output), sols) {
+	if !solEquals(ComputeAllSolutionsSeq(input), sols) {
 		t.Error("y(output) != solutions")
 	}
 }
@@ -31,38 +31,72 @@ func TestSeq2(t *testing.T) {
 		}
 		t.Error("y(input) != partial")
 	}
-	if !equals(FullyReduceRelationsSeq(partial), output) {
+	if !equals(FullyReduceRelationsSeq(input), output) {
 		t.Error("y(partial) != output")
 	}
-	if !solEquals(ComputeAllSolutions(output), sols) {
+	if !solEquals(ComputeAllSolutionsSeq(input), sols) {
 		t.Error("y(output) != solutions")
 	}
 }
 
 func TestPar1(t *testing.T) {
 	input, partial, output, sols := test1Data()
-	if !equals(YannakakisPar(input), partial) {
+	if rel, sat := YannakakisPar(input); !sat || !equals(rel, partial) {
+		if !sat {
+			t.Error("y(input) is unsat!")
+		}
 		t.Error("y(input) != partial")
 	}
-	if !equals(FullyReduceRelationsPar(partial), output) {
+	if !equals(FullyReduceRelationsPar(input), output) {
 		t.Error("y(partial) != output")
 	}
-	if !solEquals(ComputeAllSolutions(output), sols) {
+	if !solEquals(ComputeAllSolutionsPar(input), sols) {
 		t.Error("y(output) != solutions")
 	}
 }
 
 func TestPar2(t *testing.T) {
 	input, partial, output, sols := test2Data()
-	if !equals(YannakakisPar(input), partial) {
+	if rel, sat := YannakakisPar(input); !sat || !equals(rel, partial) {
+		if !sat {
+			t.Error("y(input) is unsat!")
+		}
 		t.Error("y(input) != partial")
 	}
-	if !equals(FullyReduceRelationsPar(partial), output) {
+	if !equals(FullyReduceRelationsPar(input), output) {
 		t.Error("y(partial) != output")
 	}
-	if !solEquals(ComputeAllSolutions(output), sols) {
+	if !solEquals(ComputeAllSolutionsPar(input), sols) {
 		t.Error("y(output) != solutions")
 	}
+}
+
+func TestYMCA1(t *testing.T) {
+	input, partial, output, _ := test1Data()
+	sat, err := YMCA(input)
+	if err != nil {
+		panic(err)
+	}
+	if !sat {
+		t.Error("y(input) is unsat, expected sat")
+	}
+	if !equals(input, partial) {
+		t.Error("y(input) != partial")
+	}
+
+	err = YMCAFullReduce()
+	if err != nil {
+		panic(err)
+	}
+	if !equals(input, output) {
+		t.Error("y(partial) != output")
+	}
+	//if !equals(FullyReduceRelationsPar(partial), output) {
+	//	t.Error("y(partial) != output")
+	//}
+	//if !solEquals(ComputeAllSolutions(output), sols) {
+	//	t.Error("y(output) != solutions")
+	//}
 }
 
 func equals(node1 *Node, node2 *Node) bool {
@@ -166,19 +200,19 @@ func test1Data() (*Node, *Node, *Node, []ctr.Solution) {
 
 	//creating output
 	dOutRel := []Tuple{{3, 8}, {3, 7}}
-	dOutput := &Node{ID: 1, Tuples: InitializedRelation(dAttrs, dOutRel)}
+	dOutput := &Node{ID: 1, Tuples: InitializedRelation(dAttrs, dOutRel), Lock: &sync.Mutex{}}
 	dOutput.SetBag(dAttrs)
 
 	rOutRel := []Tuple{{3, 8, 9}, {3, 8, 3}}
-	rOutput := &Node{ID: 2, Tuples: InitializedRelation(rAttrs, rOutRel)}
+	rOutput := &Node{ID: 2, Tuples: InitializedRelation(rAttrs, rOutRel), Lock: &sync.Mutex{}}
 	rOutput.SetBag(rAttrs)
 
 	sOutRel := []Tuple{{8, 3, 8}, {8, 9, 4}}
-	sOutput := &Node{ID: 3, Tuples: InitializedRelation(sAttrs, sOutRel)}
+	sOutput := &Node{ID: 3, Tuples: InitializedRelation(sAttrs, sOutRel), Lock: &sync.Mutex{}}
 	sOutput.SetBag(sAttrs)
 
 	tOutRel := []Tuple{{9, 8}}
-	tOutput := &Node{ID: 4, Tuples: InitializedRelation(tAttrs, tOutRel)}
+	tOutput := &Node{ID: 4, Tuples: InitializedRelation(tAttrs, tOutRel), Lock: &sync.Mutex{}}
 	tOutput.SetBag(tAttrs)
 
 	dOutput.AddChild(rOutput)
@@ -292,27 +326,27 @@ func test2Data() (*Node, *Node, *Node, []ctr.Solution) {
 
 	//creating output
 	dOutRel := []Tuple{{3, 8}}
-	dOutput := &Node{ID: 1, Tuples: InitializedRelation(dAttrs, dOutRel)}
+	dOutput := &Node{ID: 1, Tuples: InitializedRelation(dAttrs, dOutRel), Lock: &sync.Mutex{}}
 	dOutput.SetBag(dAttrs)
 
 	rOutRel := []Tuple{{3, 8, 9}, {3, 8, 3}}
-	rOutput := &Node{ID: 2, Tuples: InitializedRelation(rAttrs, rOutRel)}
+	rOutput := &Node{ID: 2, Tuples: InitializedRelation(rAttrs, rOutRel), Lock: &sync.Mutex{}}
 	rOutput.SetBag(rAttrs)
 
 	aOutRel := []Tuple{{8, 4}}
-	aOutput := &Node{ID: 5, Tuples: InitializedRelation(aAttrs, aOutRel)}
+	aOutput := &Node{ID: 5, Tuples: InitializedRelation(aAttrs, aOutRel), Lock: &sync.Mutex{}}
 	aOutput.SetBag(aAttrs)
 
 	sOutRel := []Tuple{{8, 3, 8}, {8, 9, 4}}
-	sOutput := &Node{ID: 3, Tuples: InitializedRelation(sAttrs, sOutRel)}
+	sOutput := &Node{ID: 3, Tuples: InitializedRelation(sAttrs, sOutRel), Lock: &sync.Mutex{}}
 	sOutput.SetBag(sAttrs)
 
 	tOutRel := []Tuple{{9, 8}}
-	tOutput := &Node{ID: 4, Tuples: InitializedRelation(tAttrs, tOutRel)}
+	tOutput := &Node{ID: 4, Tuples: InitializedRelation(tAttrs, tOutRel), Lock: &sync.Mutex{}}
 	tOutput.SetBag(tAttrs)
 
 	bOutRel := []Tuple{{4, 1}}
-	bOutput := &Node{ID: 6, Tuples: InitializedRelation(bAttrs, bOutRel)}
+	bOutput := &Node{ID: 6, Tuples: InitializedRelation(bAttrs, bOutRel), Lock: &sync.Mutex{}}
 	bOutput.SetBag(bAttrs)
 
 	dOutput.AddChild(rOutput)

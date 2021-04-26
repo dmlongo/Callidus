@@ -2,6 +2,7 @@ package decomp
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 )
 
@@ -30,6 +31,7 @@ func NewNode(id int, vars []string, edges []string) *Node {
 	n.SetBag(vars)
 	n.SetCover(edges)
 	n.Tuples = NewRelation(vars)
+	n.Lock = &sync.Mutex{}
 	return &n
 }
 
@@ -123,4 +125,13 @@ func subset(s []string, p map[string]int) bool {
 		}
 	}
 	return true
+}
+
+func PrintTreeRelations(n *Node) {
+	fmt.Println("Rel-" + strconv.Itoa(n.ID))
+	fmt.Println(ToString(n.Tuples))
+	fmt.Println()
+	for _, c := range n.Children {
+		PrintTreeRelations(c)
+	}
 }

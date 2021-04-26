@@ -1,5 +1,12 @@
 package decomp
 
+import (
+	"strconv"
+	"strings"
+
+	"github.com/dmlongo/callidus/ctr"
+)
+
 // Relation represent a set of tuples
 type Relation interface {
 	Attributes() []string
@@ -58,6 +65,7 @@ func (t *table) AddTuple(vals []int) (Tuple, bool) {
 		return nil, false
 	}
 	// TODO check domains?
+	// TODO no check if the tuple is already here
 	t.tuples = append(t.tuples, vals)
 	return vals, true
 }
@@ -84,10 +92,13 @@ func (t *table) Tuples() []Tuple {
 	return t.tuples
 }
 
-type Filter func(t Tuple) bool
+type Condition func(t Tuple) bool
 
 func Semijoin(l Relation, r Relation) (Relation, bool) {
 	joinIdx := commonAttrs(l, r)
+	if len(joinIdx) == 0 {
+		return l, false
+	}
 
 	var tupToDel []int
 	for i, leftTup := range l.Tuples() {
@@ -122,10 +133,10 @@ func Join(l Relation, r Relation) Relation {
 	return newRel
 }
 
-func Select(r Relation, f Filter) (Relation, bool) {
+func Select(r Relation, c Condition) (Relation, bool) {
 	var tupToDel []int
 	for i, tup := range r.Tuples() {
-		if f(tup) {
+		if !c(tup) {
 			tupToDel = append(tupToDel, i)
 		}
 	}
@@ -177,6 +188,39 @@ func joinedTuple(attrs []string, lTup Tuple, rTup Tuple, rPos func(string) (int,
 	for _, v := range attrs[len(lTup):] {
 		i, _ := rPos(v)
 		res = append(res, rTup[i])
+	}
+	return res
+}
+
+func ToString(r Relation) string {
+	var sb strings.Builder
+	for i, attr := range r.Attributes() {
+		sb.WriteString(attr)
+		if i < len(r.Attributes()) {
+			sb.WriteByte('\t')
+		}
+	}
+	sb.WriteByte('\n')
+	for _, tup := range r.Tuples() {
+		for i, v := range tup {
+			sb.WriteString(strconv.Itoa(v))
+			if i < len(tup) {
+				sb.WriteByte('\t')
+			}
+		}
+		sb.WriteByte('\n')
+	}
+	return sb.String()
+}
+
+func ToSolutions(r Relation) []ctr.Solution {
+	var res []ctr.Solution
+	for _, tup := range r.Tuples() {
+		sol := make(ctr.Solution)
+		for i, v := range r.Attributes() {
+			sol[v] = tup[i]
+		}
+		res = append(res, sol)
 	}
 	return res
 }

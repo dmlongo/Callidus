@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/dmlongo/callidus/ctr"
+	files "github.com/dmlongo/callidus/ext/files"
 )
 
 var nacre string
@@ -31,18 +31,19 @@ func init() {
 	nacre = filepath.Dir(path) + "/libs/nacre"
 }
 
+var listRegex = regexp.MustCompile(`.*<list>(.*)</list>.*`)
 var valuesRegex = regexp.MustCompile(`.*<values>(.*)</values>.*`)
 
 // SolveSubCspSeq solve the CSPs associated to a hypertree sequentially
 func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[string]ctr.Constraint, baseDir string) bool {
-	subCspFolder := makeDir(baseDir + "subs/")
+	subCspFolder := files.MakeDir(baseDir + "subs/")
 
 	sat := true
 	for _, node := range nodes {
 		nodeCtrs, nodeVars := filterCtrsVars(node, constraints, domains)
 		subFile := subCspFolder + "sub" + strconv.Itoa(node.ID) + ".xml"
 		ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
-		sat = solveCSPSeq(subFile, len(nodeVars), node)
+		sat = solveCSPSeq(subFile, node)
 		if !sat {
 			break
 		}
@@ -50,7 +51,7 @@ func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[st
 	return sat
 }
 
-func solveCSPSeq(cspFile string, numVars int, node *Node) bool {
+func solveCSPSeq(cspFile string, node *Node) bool {
 	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -60,7 +61,7 @@ func solveCSPSeq(cspFile string, numVars int, node *Node) bool {
 		panic(err)
 	}
 
-	res := readTuples(bufio.NewReader(stdout), cspFile, numVars, node)
+	res := readTuples(bufio.NewReader(stdout), cspFile, node)
 	if err := cmd.Wait(); err != nil {
 		if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() != 40 {
 			panic(fmt.Sprintf("nacre failed: %v:", err))
@@ -69,36 +70,55 @@ func solveCSPSeq(cspFile string, numVars int, node *Node) bool {
 	return res
 }
 
-func readTuples(reader *bufio.Reader, cspFile string, arity int, node *Node) bool {
+func readTuples(reader *bufio.Reader, cspFile string, node *Node) bool {
 	solFound := false
 	for {
-		line, err := reader.ReadString('\n')
-		if err == io.EOF && len(line) == 0 {
+		line, eof := files.ReadLine(reader)
+		if eof {
 			break
 		}
 		if strings.HasPrefix(line, "v") {
-			matches := valuesRegex.FindStringSubmatch(line)
-			if len(matches) < 2 {
-				panic(cspFile + ", bad values= " + line)
+			tup := makeTuple(line, cspFile, node.bagSet)
+			if _, added := node.Tuples.AddTuple(tup); !added {
+				panic(fmt.Sprintf("node %v, %s: Could not add tuple %v", node.ID, cspFile, tup))
 			}
-			tup := make([]int, arity)
-			for i, value := range strings.Split(strings.TrimSpace(matches[1]), " ") {
-				v, err := strconv.Atoi(value)
-				if err != nil {
-					panic(err)
-				}
-				tup[i] = v
-			}
-			node.Tuples.AddTuple(tup)
 			solFound = true
 		}
 	}
 	return solFound
 }
 
+func makeTuple(line string, cspFile string, bag map[string]int) Tuple {
+	matchesVal := valuesRegex.FindStringSubmatch(line)
+	if len(matchesVal) < 2 {
+		panic(cspFile + ", bad values= " + line)
+	}
+	matchesList := listRegex.FindStringSubmatch(line)
+	if len(matchesList) < 2 {
+		panic(cspFile + ", bad list= " + line)
+	}
+	list := strings.Split(strings.TrimSpace(matchesList[1]), " ")
+	tup := make([]int, len(bag))
+	z := 0
+	for i, value := range strings.Split(strings.TrimSpace(matchesVal[1]), " ") {
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			panic(err)
+		}
+		if _, ok := bag[list[i]]; ok {
+			tup[z] = v
+			z++
+		}
+	}
+	if z != len(bag) {
+		panic(fmt.Sprintf("Did not find enough variables %v/%v, list: %v", z, len(bag), list))
+	}
+	return tup
+}
+
 // SolveSubCspPar solve the CSPs associated to a hypertree in parallel
 func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[string]ctr.Constraint, baseDir string) bool {
-	subCspFolder := makeDir(baseDir + "subs/")
+	subCspFolder := files.MakeDir(baseDir + "subs/")
 
 	jobs := make(chan *Node)
 	go func() {
@@ -124,7 +144,7 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 				nodeCtrs, nodeVars := filterCtrsVars(n, constraints, domains)
 				subFile := subCspFolder + "sub" + strconv.Itoa(n.ID) + ".xml"
 				ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
-				solveCSPPar(subFile, len(nodeVars), n, sat, quit)
+				solveCSPPar(subFile, n, sat, quit)
 				wg.Done()
 			}
 		}()
@@ -142,7 +162,7 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 	return true
 }
 
-func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit <-chan bool) {
+func solveCSPPar(cspFile string, node *Node, sat chan<- bool, quit <-chan bool) {
 	cmd := exec.Command(nacre, cspFile, "-complete", "-sols", "-verb=3")
 	stdout, err := cmd.StdoutPipe()
 	var stderr bytes.Buffer
@@ -155,7 +175,7 @@ func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit 
 	}
 
 	res := false
-	tuples := fetchTuples(bufio.NewReader(stdout), cspFile, numVars, quit)
+	tuples := fetchTuples(bufio.NewReader(stdout), cspFile, node, quit)
 	for tup := range tuples {
 		select {
 		case <-quit:
@@ -166,7 +186,9 @@ func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit 
 			return
 		default:
 			res = true
-			node.Tuples.AddTuple(tup)
+			if _, added := node.Tuples.AddTuple(tup); !added {
+				panic(fmt.Sprintf("node %v, %s: Tuple arity does not match with relation arity %v", node.ID, cspFile, len(node.Tuples.Attributes())))
+			}
 		}
 	}
 	if err := cmd.Wait(); err != nil {
@@ -177,7 +199,7 @@ func solveCSPPar(cspFile string, numVars int, node *Node, sat chan<- bool, quit 
 	sat <- res
 }
 
-func fetchTuples(r *bufio.Reader, cspFile string, arity int, quit <-chan bool) <-chan []int {
+func fetchTuples(r *bufio.Reader, cspFile string, node *Node, quit <-chan bool) <-chan []int {
 	out := make(chan []int) // TODO buffer maybe?
 	go func() {
 		defer close(out)
@@ -186,23 +208,12 @@ func fetchTuples(r *bufio.Reader, cspFile string, arity int, quit <-chan bool) <
 			case <-quit:
 				return
 			default:
-				line, err := r.ReadString('\n')
-				if err == io.EOF && len(line) == 0 {
+				line, eof := files.ReadLine(r)
+				if eof {
 					return
 				}
 				if strings.HasPrefix(line, "v") {
-					matches := valuesRegex.FindStringSubmatch(line)
-					if len(matches) < 2 {
-						panic(cspFile + ", bad values= " + line)
-					}
-					tup := make([]int, arity)
-					for i, value := range strings.Split(strings.TrimSpace(matches[1]), " ") {
-						v, err := strconv.Atoi(value)
-						if err != nil {
-							panic(err)
-						}
-						tup[i] = v
-					}
+					tup := makeTuple(line, cspFile, node.bagSet)
 					out <- tup
 				}
 			}
@@ -224,31 +235,4 @@ func filterCtrsVars(n *Node, ctrs map[string]ctr.Constraint, doms map[string]str
 		}
 	}
 	return outCtrs, outVars
-}
-
-func makeDir(name string) string {
-	err := os.RemoveAll(name)
-	if err != nil {
-		panic(err)
-	}
-	err = os.Mkdir(name, 0777)
-	if err != nil {
-		panic(err)
-	}
-	return name
-}
-
-// PrintMemUsage prints the memory usage
-func PrintMemUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
 }
