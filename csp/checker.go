@@ -1,4 +1,4 @@
-package ext
+package csp
 
 import (
 	"fmt"
@@ -6,8 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/dmlongo/callidus/ctr"
 )
 
 var xcsp3Tools string
@@ -25,8 +23,8 @@ func init() {
 }
 
 // CheckSolution of a CSP
-func CheckSolution(csp string, solution ctr.Solution) (string, bool) {
-	xcspSol := ctr.WriteSolution(solution)
+func CheckSolution(csp string, solution Solution) (string, bool) {
+	xcspSol := WriteSolution(solution)
 	out, err := exec.Command("java", "-cp", xcsp3Tools, "org.xcsp.parser.callbacks.SolutionChecker", csp, xcspSol).Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {

@@ -13,7 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dmlongo/callidus/ctr"
+	"github.com/dmlongo/callidus/csp"
+	"github.com/dmlongo/callidus/db"
 	files "github.com/dmlongo/callidus/ext/files"
 )
 
@@ -35,14 +36,14 @@ var listRegex = regexp.MustCompile(`.*<list>(.*)</list>.*`)
 var valuesRegex = regexp.MustCompile(`.*<values>(.*)</values>.*`)
 
 // SolveSubCspSeq solve the CSPs associated to a hypertree sequentially
-func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[string]ctr.Constraint, baseDir string) bool {
+func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[string]csp.Constraint, baseDir string) bool {
 	subCspFolder := files.MakeDir(baseDir + "subs/")
 
 	sat := true
 	for _, node := range nodes {
 		nodeCtrs, nodeVars := filterCtrsVars(node, constraints, domains)
 		subFile := subCspFolder + "sub" + strconv.Itoa(node.ID) + ".xml"
-		ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
+		csp.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
 		sat = solveCSPSeq(subFile, node)
 		if !sat {
 			break
@@ -88,7 +89,7 @@ func readTuples(reader *bufio.Reader, cspFile string, node *Node) bool {
 	return solFound
 }
 
-func makeTuple(line string, cspFile string, bag map[string]int) Tuple {
+func makeTuple(line string, cspFile string, bag map[string]int) db.Tuple {
 	matchesVal := valuesRegex.FindStringSubmatch(line)
 	if len(matchesVal) < 2 {
 		panic(cspFile + ", bad values= " + line)
@@ -117,7 +118,7 @@ func makeTuple(line string, cspFile string, bag map[string]int) Tuple {
 }
 
 // SolveSubCspPar solve the CSPs associated to a hypertree in parallel
-func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[string]ctr.Constraint, baseDir string) bool {
+func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[string]csp.Constraint, baseDir string) bool {
 	subCspFolder := files.MakeDir(baseDir + "subs/")
 
 	jobs := make(chan *Node)
@@ -143,7 +144,7 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 			for n := range jobs {
 				nodeCtrs, nodeVars := filterCtrsVars(n, constraints, domains)
 				subFile := subCspFolder + "sub" + strconv.Itoa(n.ID) + ".xml"
-				ctr.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
+				csp.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
 				solveCSPPar(subFile, n, sat, quit)
 				wg.Done()
 			}
@@ -222,8 +223,8 @@ func fetchTuples(r *bufio.Reader, cspFile string, node *Node, quit <-chan bool) 
 	return out
 }
 
-func filterCtrsVars(n *Node, ctrs map[string]ctr.Constraint, doms map[string]string) ([]ctr.Constraint, map[string]string) {
-	outCtrs := make([]ctr.Constraint, 0, len(n.Cover()))
+func filterCtrsVars(n *Node, ctrs map[string]csp.Constraint, doms map[string]string) ([]csp.Constraint, map[string]string) {
+	outCtrs := make([]csp.Constraint, 0, len(n.Cover()))
 	outVars := make(map[string]string)
 	for _, e := range n.Cover() {
 		c := ctrs[e]

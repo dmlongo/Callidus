@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+
+	"github.com/dmlongo/callidus/db"
 )
 
 // TODO make it really a tree!
@@ -22,7 +24,7 @@ type Node struct {
 	cover    []string
 	coverSet map[string]bool
 
-	Tuples Relation
+	Tuples db.Relation
 	Lock   *sync.Mutex
 }
 
@@ -30,7 +32,7 @@ func NewNode(id int, vars []string, edges []string) *Node {
 	n := Node{ID: id}
 	n.SetBag(vars)
 	n.SetCover(edges)
-	n.Tuples = NewRelation(vars)
+	n.Tuples = db.NewRelation(vars)
 	n.Lock = &sync.Mutex{}
 	return &n
 }
@@ -129,9 +131,22 @@ func subset(s []string, p map[string]int) bool {
 
 func PrintTreeRelations(n *Node) {
 	fmt.Println("Rel-" + strconv.Itoa(n.ID))
-	fmt.Println(ToString(n.Tuples))
+	fmt.Println(db.RelToString(n.Tuples))
 	fmt.Println()
 	for _, c := range n.Children {
 		PrintTreeRelations(c)
 	}
+}
+
+func Bfs(root *Node) Hypertree {
+	nodes := make(Hypertree, 0)
+	toVisit := make(Hypertree, 0)
+	toVisit = append(toVisit, root)
+	var curr *Node
+	for len(toVisit) > 0 {
+		curr, toVisit = toVisit[0], toVisit[1:]
+		nodes = append(nodes, curr)
+		toVisit = append(toVisit, curr.Children...)
+	}
+	return nodes
 }

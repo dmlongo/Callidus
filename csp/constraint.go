@@ -1,4 +1,4 @@
-package ctr
+package csp
 
 // Constraint is an interface for constraints
 type Constraint interface {

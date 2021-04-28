@@ -2,10 +2,12 @@ package decomp
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 
-	"github.com/dmlongo/callidus/ctr"
+	"github.com/dmlongo/callidus/csp"
+	"github.com/dmlongo/callidus/db"
 )
 
 // YannakakisSeq performs the sequential Yannakakis' algorithm
@@ -15,7 +17,7 @@ func YannakakisSeq(root *Node) (*Node, bool) {
 		if _, sat := YannakakisSeq(child); !sat {
 			return nil, false
 		}
-		Semijoin(root.Tuples, child.Tuples)
+		db.Semijoin(root.Tuples, child.Tuples)
 		if root.Tuples.Empty() {
 			return nil, false
 		}
@@ -24,7 +26,7 @@ func YannakakisSeq(root *Node) (*Node, bool) {
 }
 
 // YannakakisPar performs the parallel Yannakakis' algorithm
-func YannakakisPar(root *Node) (*Node, bool) {
+/*func YannakakisPar(root *Node) (*Node, bool) {
 	// bottom-up
 	var wg *sync.WaitGroup = &sync.WaitGroup{}
 	for _, child := range root.Children {
@@ -45,13 +47,114 @@ func YannakakisPar(root *Node) (*Node, bool) {
 	}
 	wg.Wait()
 	return root, true
+}*/
+
+// YannakakisPar performs the parallel Yannakakis' algorithm
+func YannakakisPar(root *Node) (*Node, bool) {
+	nodes := Bfs(root)
+	leaves := 0
+
+	type job struct {
+		id    int
+		lock  *sync.Mutex
+		left  db.Relation
+		right db.Relation
+	}
+	type result struct {
+		id  int
+		sat bool
+	}
+
+	jobs := make(chan *job, len(nodes))
+	results := make(chan *result)
+	sat := make(chan bool)
+	numLeaves := make(chan int)
+	quit := make(chan bool)
+	defer close(quit)
+	go func() {
+		defer close(jobs)
+		defer close(sat)
+		deps := make(map[int]int)
+		id2node := make(map[int]*Node)
+		for _, curr := range nodes {
+			numChildren := len(curr.Children)
+			if numChildren == 0 && curr.Parent != nil {
+				leaves++
+				jobs <- &job{
+					id:    curr.Parent.ID,
+					lock:  curr.Parent.Lock,
+					left:  curr.Parent.Tuples,
+					right: curr.Tuples,
+				}
+			} else {
+				deps[curr.ID] = numChildren
+				id2node[curr.ID] = curr
+			}
+		}
+		numLeaves <- leaves
+		close(numLeaves)
+
+		for len(deps) > 0 {
+			res := <-results
+			if res.sat {
+				parentID := res.id
+				parent := id2node[parentID]
+				deps[parentID] -= 1
+				if deps[parentID] == 0 {
+					delete(deps, parentID)
+					delete(id2node, parentID)
+					if parent.Parent != nil {
+						jobs <- &job{
+							id:    parent.Parent.ID,
+							lock:  parent.Parent.Lock,
+							left:  parent.Parent.Tuples,
+							right: parent.Tuples,
+						}
+					}
+				}
+			} else {
+				sat <- false
+				return
+			}
+		}
+		sat <- true
+	}()
+
+	numNodes := <-numLeaves
+	numWorkers := runtime.NumCPU()
+	if numNodes < numWorkers {
+		numWorkers = numNodes
+	}
+	for i := 0; i < numWorkers; i++ {
+		go func() { // launch a worker
+			for job := range jobs {
+				job.lock.Lock()
+				db.Semijoin(job.left, job.right)
+				sat := !job.left.Empty()
+				job.lock.Unlock()
+				select {
+				case results <- &result{
+					id:  job.id,
+					sat: sat,
+				}:
+				case <-quit:
+					return
+				}
+			}
+		}()
+	}
+
+	if !<-sat {
+		return nil, false
+	}
+	return root, true
 }
 
 // FullyReduceRelationsSeq after first bottom-up reduction sequentially
 func FullyReduceRelationsSeq(root *Node) *Node {
 	// top-down
 	for _, child := range root.Children {
-		Semijoin(child.Tuples, root.Tuples)
+		db.Semijoin(child.Tuples, root.Tuples)
 		FullyReduceRelationsSeq(child)
 	}
 	return root
@@ -62,7 +165,7 @@ func FullyReduceRelationsPar(root *Node) *Node {
 	var wg *sync.WaitGroup = &sync.WaitGroup{}
 	for _, child := range root.Children {
 		wg.Add(1)
-		Semijoin(child.Tuples, root.Tuples)
+		db.Semijoin(child.Tuples, root.Tuples)
 		go func(c *Node) {
 			FullyReduceRelationsPar(c)
 			wg.Done()
@@ -74,23 +177,23 @@ func FullyReduceRelationsPar(root *Node) *Node {
 }
 
 // ComputeAllSolutionsSeq from fully reduced relations
-func ComputeAllSolutionsSeq(root *Node) []ctr.Solution {
+func ComputeAllSolutionsSeq(root *Node) []csp.Solution {
 	_, rel := computeBottomUpSeq(root)
 
 	fmt.Print("(Conversion from Relation to Solution... ")
 	startConversion := time.Now()
-	allSolutions := ToSolutions(rel)
+	allSolutions := db.RelToSolutions(rel)
 	fmt.Print("done in ", time.Since(startConversion), ") ")
 	return allSolutions
 }
 
-func computeBottomUpSeq(curr *Node) ([]string, Relation) {
+func computeBottomUpSeq(curr *Node) ([]string, db.Relation) {
 	for _, child := range curr.Children {
 		childBag, childTuples := computeBottomUpSeq(child)
 		child.SetBag(childBag)
 		child.Tuples = childTuples
 
-		currRel := Join(curr.Tuples, child.Tuples)
+		currRel := db.Join(curr.Tuples, child.Tuples)
 		curr.SetBag(currRel.Attributes())
 		curr.Tuples = currRel
 	}
@@ -98,17 +201,17 @@ func computeBottomUpSeq(curr *Node) ([]string, Relation) {
 }
 
 // ComputeAllSolutionsPar from fully reduced relations in parallel
-func ComputeAllSolutionsPar(root *Node) []ctr.Solution {
+func ComputeAllSolutionsPar(root *Node) []csp.Solution {
 	_, rel := computeBottomUpPar(root)
 
 	fmt.Print("(Conversion from Relation to Solution... ")
 	startConversion := time.Now()
-	allSolutions := ToSolutions(rel)
+	allSolutions := db.RelToSolutions(rel)
 	fmt.Print("done in ", time.Since(startConversion), ") ")
 	return allSolutions
 }
 
-func computeBottomUpPar(curr *Node) ([]string, Relation) {
+func computeBottomUpPar(curr *Node) ([]string, db.Relation) {
 	var wg *sync.WaitGroup = &sync.WaitGroup{}
 	for _, child := range curr.Children {
 		wg.Add(1)
@@ -119,10 +222,12 @@ func computeBottomUpPar(curr *Node) ([]string, Relation) {
 			child.Tuples = childTuples
 
 			curr.Lock.Lock()
-			currRel := Join(curr.Tuples, child.Tuples)
+			currRel := db.Join(curr.Tuples, child.Tuples)
 			curr.SetBag(currRel.Attributes())
 			curr.Tuples = currRel
 			curr.Lock.Unlock()
+
+			child.Tuples = nil
 		}(child)
 	}
 	wg.Wait()

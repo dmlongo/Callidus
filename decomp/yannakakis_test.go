@@ -4,7 +4,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dmlongo/callidus/ctr"
+	"github.com/dmlongo/callidus/csp"
+	"github.com/dmlongo/callidus/db"
 )
 
 func TestSeq1(t *testing.T) {
@@ -36,6 +37,13 @@ func TestSeq2(t *testing.T) {
 	}
 	if !solEquals(ComputeAllSolutionsSeq(input), sols) {
 		t.Error("y(output) != solutions")
+	}
+}
+
+func TestSeq3(t *testing.T) {
+	input := test3Data()
+	if _, sat := YannakakisSeq(input); sat {
+		t.Error("y(input) is sat!")
 	}
 }
 
@@ -71,32 +79,11 @@ func TestPar2(t *testing.T) {
 	}
 }
 
-func TestYMCA1(t *testing.T) {
-	input, partial, output, _ := test1Data()
-	sat, err := YMCA(input)
-	if err != nil {
-		panic(err)
+func TestPar3(t *testing.T) {
+	input := test3Data()
+	if _, sat := YannakakisPar(input); sat {
+		t.Error("y(input) is sat!")
 	}
-	if !sat {
-		t.Error("y(input) is unsat, expected sat")
-	}
-	if !equals(input, partial) {
-		t.Error("y(input) != partial")
-	}
-
-	err = YMCAFullReduce()
-	if err != nil {
-		panic(err)
-	}
-	if !equals(input, output) {
-		t.Error("y(partial) != output")
-	}
-	//if !equals(FullyReduceRelationsPar(partial), output) {
-	//	t.Error("y(partial) != output")
-	//}
-	//if !solEquals(ComputeAllSolutions(output), sols) {
-	//	t.Error("y(output) != solutions")
-	//}
 }
 
 func equals(node1 *Node, node2 *Node) bool {
@@ -111,11 +98,11 @@ func equals(node1 *Node, node2 *Node) bool {
 	return true
 }
 
-func solEquals(sols1 []ctr.Solution, sols2 []ctr.Solution) bool {
+func solEquals(sols1 []csp.Solution, sols2 []csp.Solution) bool {
 	return subsetOf(sols1, sols2) && subsetOf(sols2, sols1)
 }
 
-func subsetOf(sols1 []ctr.Solution, sols2 []ctr.Solution) bool {
+func subsetOf(sols1 []csp.Solution, sols2 []csp.Solution) bool {
 	for _, s1 := range sols1 {
 		found := false
 		for _, s2 := range sols2 {
@@ -151,26 +138,26 @@ func samePossibleValues(node1 *Node, node2 *Node) bool {
 	return true
 }
 
-func test1Data() (*Node, *Node, *Node, []ctr.Solution) {
+func test1Data() (*Node, *Node, *Node, []csp.Solution) {
 	//creating input
 	dAttrs := []string{"Y", "P"}
-	dRel := []Tuple{{3, 8}, {3, 7}, {5, 7}, {6, 7}}
-	dInput := &Node{ID: 1, Tuples: InitializedRelation(dAttrs, dRel), Lock: &sync.Mutex{}}
+	dRel := []db.Tuple{{3, 8}, {3, 7}, {5, 7}, {6, 7}}
+	dInput := &Node{ID: 1, Tuples: db.InitializedRelation(dAttrs, dRel), Lock: &sync.Mutex{}}
 	dInput.SetBag(dAttrs)
 
 	rAttrs := []string{"Y", "Z", "U"}
-	rRel := []Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
-	rInput := &Node{ID: 2, Tuples: InitializedRelation(rAttrs, rRel), Lock: &sync.Mutex{}}
+	rRel := []db.Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
+	rInput := &Node{ID: 2, Tuples: db.InitializedRelation(rAttrs, rRel), Lock: &sync.Mutex{}}
 	rInput.SetBag(rAttrs)
 
 	sAttrs := []string{"Z", "U", "W"}
-	sRel := []Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
-	sInput := &Node{ID: 3, Tuples: InitializedRelation(sAttrs, sRel), Lock: &sync.Mutex{}}
+	sRel := []db.Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
+	sInput := &Node{ID: 3, Tuples: db.InitializedRelation(sAttrs, sRel), Lock: &sync.Mutex{}}
 	sInput.SetBag(sAttrs)
 
 	tAttrs := []string{"V", "Z"}
-	tRel := []Tuple{{9, 8}, {9, 3}, {9, 5}}
-	tInput := &Node{ID: 4, Tuples: InitializedRelation(tAttrs, tRel), Lock: &sync.Mutex{}}
+	tRel := []db.Tuple{{9, 8}, {9, 3}, {9, 5}}
+	tInput := &Node{ID: 4, Tuples: db.InitializedRelation(tAttrs, tRel), Lock: &sync.Mutex{}}
 	tInput.SetBag(tAttrs)
 
 	dInput.AddChild(rInput)
@@ -178,20 +165,20 @@ func test1Data() (*Node, *Node, *Node, []ctr.Solution) {
 	rInput.AddChild(tInput)
 
 	// creating partially reduced
-	dPartRel := []Tuple{{3, 8}, {3, 7}}
-	dPartial := &Node{ID: 1, Tuples: InitializedRelation(dAttrs, dPartRel), Lock: &sync.Mutex{}}
+	dPartRel := []db.Tuple{{3, 8}, {3, 7}}
+	dPartial := &Node{ID: 1, Tuples: db.InitializedRelation(dAttrs, dPartRel), Lock: &sync.Mutex{}}
 	dPartial.SetBag(dAttrs)
 
-	rPartRel := []Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 3}}
-	rPartial := &Node{ID: 2, Tuples: InitializedRelation(rAttrs, rPartRel), Lock: &sync.Mutex{}}
+	rPartRel := []db.Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 3}}
+	rPartial := &Node{ID: 2, Tuples: db.InitializedRelation(rAttrs, rPartRel), Lock: &sync.Mutex{}}
 	rPartial.SetBag(rAttrs)
 
-	sPartRel := []Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
-	sPartial := &Node{ID: 3, Tuples: InitializedRelation(sAttrs, sPartRel), Lock: &sync.Mutex{}}
+	sPartRel := []db.Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
+	sPartial := &Node{ID: 3, Tuples: db.InitializedRelation(sAttrs, sPartRel), Lock: &sync.Mutex{}}
 	sPartial.SetBag(sAttrs)
 
-	tPartRel := []Tuple{{9, 8}, {9, 3}, {9, 5}}
-	tPartial := &Node{ID: 4, Tuples: InitializedRelation(tAttrs, tPartRel), Lock: &sync.Mutex{}}
+	tPartRel := []db.Tuple{{9, 8}, {9, 3}, {9, 5}}
+	tPartial := &Node{ID: 4, Tuples: db.InitializedRelation(tAttrs, tPartRel), Lock: &sync.Mutex{}}
 	tPartial.SetBag(tAttrs)
 
 	dPartial.AddChild(rPartial)
@@ -199,20 +186,20 @@ func test1Data() (*Node, *Node, *Node, []ctr.Solution) {
 	rPartial.AddChild(tPartial)
 
 	//creating output
-	dOutRel := []Tuple{{3, 8}, {3, 7}}
-	dOutput := &Node{ID: 1, Tuples: InitializedRelation(dAttrs, dOutRel), Lock: &sync.Mutex{}}
+	dOutRel := []db.Tuple{{3, 8}, {3, 7}}
+	dOutput := &Node{ID: 1, Tuples: db.InitializedRelation(dAttrs, dOutRel), Lock: &sync.Mutex{}}
 	dOutput.SetBag(dAttrs)
 
-	rOutRel := []Tuple{{3, 8, 9}, {3, 8, 3}}
-	rOutput := &Node{ID: 2, Tuples: InitializedRelation(rAttrs, rOutRel), Lock: &sync.Mutex{}}
+	rOutRel := []db.Tuple{{3, 8, 9}, {3, 8, 3}}
+	rOutput := &Node{ID: 2, Tuples: db.InitializedRelation(rAttrs, rOutRel), Lock: &sync.Mutex{}}
 	rOutput.SetBag(rAttrs)
 
-	sOutRel := []Tuple{{8, 3, 8}, {8, 9, 4}}
-	sOutput := &Node{ID: 3, Tuples: InitializedRelation(sAttrs, sOutRel), Lock: &sync.Mutex{}}
+	sOutRel := []db.Tuple{{8, 3, 8}, {8, 9, 4}}
+	sOutput := &Node{ID: 3, Tuples: db.InitializedRelation(sAttrs, sOutRel), Lock: &sync.Mutex{}}
 	sOutput.SetBag(sAttrs)
 
-	tOutRel := []Tuple{{9, 8}}
-	tOutput := &Node{ID: 4, Tuples: InitializedRelation(tAttrs, tOutRel), Lock: &sync.Mutex{}}
+	tOutRel := []db.Tuple{{9, 8}}
+	tOutput := &Node{ID: 4, Tuples: db.InitializedRelation(tAttrs, tOutRel), Lock: &sync.Mutex{}}
 	tOutput.SetBag(tAttrs)
 
 	dOutput.AddChild(rOutput)
@@ -252,39 +239,39 @@ func test1Data() (*Node, *Node, *Node, []ctr.Solution) {
 		"Z": 8,
 	}
 
-	return dInput, dPartial, dOutput, []ctr.Solution{s1, s2, s3, s4}
+	return dInput, dPartial, dOutput, []csp.Solution{s1, s2, s3, s4}
 }
 
-func test2Data() (*Node, *Node, *Node, []ctr.Solution) {
+func test2Data() (*Node, *Node, *Node, []csp.Solution) {
 	//creating input
 	dAttrs := []string{"Y", "P"}
-	dRel := []Tuple{{3, 8}, {3, 7}, {5, 7}, {6, 7}}
-	dInput := &Node{ID: 1, Tuples: InitializedRelation(dAttrs, dRel), Lock: &sync.Mutex{}}
+	dRel := []db.Tuple{{3, 8}, {3, 7}, {5, 7}, {6, 7}}
+	dInput := &Node{ID: 1, Tuples: db.InitializedRelation(dAttrs, dRel), Lock: &sync.Mutex{}}
 	dInput.SetBag(dAttrs)
 
 	rAttrs := []string{"Y", "Z", "U"}
-	rRel := []Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
-	rInput := &Node{ID: 2, Tuples: InitializedRelation(rAttrs, rRel), Lock: &sync.Mutex{}}
+	rRel := []db.Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
+	rInput := &Node{ID: 2, Tuples: db.InitializedRelation(rAttrs, rRel), Lock: &sync.Mutex{}}
 	rInput.SetBag(rAttrs)
 
 	aAttrs := []string{"P", "C"}
-	aRel := []Tuple{{8, 4}, {8, 7}, {4, 9}, {3, 5}}
-	aInput := &Node{ID: 5, Tuples: InitializedRelation(aAttrs, aRel), Lock: &sync.Mutex{}}
+	aRel := []db.Tuple{{8, 4}, {8, 7}, {4, 9}, {3, 5}}
+	aInput := &Node{ID: 5, Tuples: db.InitializedRelation(aAttrs, aRel), Lock: &sync.Mutex{}}
 	aInput.SetBag(aAttrs)
 
 	sAttrs := []string{"Z", "U", "W"}
-	sRel := []Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
-	sInput := &Node{ID: 3, Tuples: InitializedRelation(sAttrs, sRel), Lock: &sync.Mutex{}}
+	sRel := []db.Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
+	sInput := &Node{ID: 3, Tuples: db.InitializedRelation(sAttrs, sRel), Lock: &sync.Mutex{}}
 	sInput.SetBag(sAttrs)
 
 	tAttrs := []string{"V", "Z"}
-	tRel := []Tuple{{9, 8}, {9, 3}, {9, 5}}
-	tInput := &Node{ID: 4, Tuples: InitializedRelation(tAttrs, tRel), Lock: &sync.Mutex{}}
+	tRel := []db.Tuple{{9, 8}, {9, 3}, {9, 5}}
+	tInput := &Node{ID: 4, Tuples: db.InitializedRelation(tAttrs, tRel), Lock: &sync.Mutex{}}
 	tInput.SetBag(tAttrs)
 
 	bAttrs := []string{"C", "A"}
-	bRel := []Tuple{{4, 1}, {3, 2}, {5, 4}}
-	bInput := &Node{ID: 6, Tuples: InitializedRelation(bAttrs, bRel), Lock: &sync.Mutex{}}
+	bRel := []db.Tuple{{4, 1}, {3, 2}, {5, 4}}
+	bInput := &Node{ID: 6, Tuples: db.InitializedRelation(bAttrs, bRel), Lock: &sync.Mutex{}}
 	bInput.SetBag(bAttrs)
 
 	dInput.AddChild(rInput)
@@ -294,28 +281,28 @@ func test2Data() (*Node, *Node, *Node, []ctr.Solution) {
 	aInput.AddChild(bInput)
 
 	// creating partially reduced
-	dPartRel := []Tuple{{3, 8}}
-	dPartial := &Node{ID: 1, Tuples: InitializedRelation(dAttrs, dPartRel), Lock: &sync.Mutex{}}
+	dPartRel := []db.Tuple{{3, 8}}
+	dPartial := &Node{ID: 1, Tuples: db.InitializedRelation(dAttrs, dPartRel), Lock: &sync.Mutex{}}
 	dPartial.SetBag(dAttrs)
 
-	rPartRel := []Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 3}}
-	rPartial := &Node{ID: 2, Tuples: InitializedRelation(rAttrs, rPartRel), Lock: &sync.Mutex{}}
+	rPartRel := []db.Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 3}}
+	rPartial := &Node{ID: 2, Tuples: db.InitializedRelation(rAttrs, rPartRel), Lock: &sync.Mutex{}}
 	rPartial.SetBag(rAttrs)
 
-	aPartRel := []Tuple{{8, 4}, {3, 5}}
-	aPartial := &Node{ID: 5, Tuples: InitializedRelation(aAttrs, aPartRel), Lock: &sync.Mutex{}}
+	aPartRel := []db.Tuple{{8, 4}, {3, 5}}
+	aPartial := &Node{ID: 5, Tuples: db.InitializedRelation(aAttrs, aPartRel), Lock: &sync.Mutex{}}
 	aPartial.SetBag(aAttrs)
 
-	sPartRel := []Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
-	sPartial := &Node{ID: 3, Tuples: InitializedRelation(sAttrs, sPartRel), Lock: &sync.Mutex{}}
+	sPartRel := []db.Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
+	sPartial := &Node{ID: 3, Tuples: db.InitializedRelation(sAttrs, sPartRel), Lock: &sync.Mutex{}}
 	sPartial.SetBag(sAttrs)
 
-	tPartRel := []Tuple{{9, 8}, {9, 3}, {9, 5}}
-	tPartial := &Node{ID: 4, Tuples: InitializedRelation(tAttrs, tPartRel), Lock: &sync.Mutex{}}
+	tPartRel := []db.Tuple{{9, 8}, {9, 3}, {9, 5}}
+	tPartial := &Node{ID: 4, Tuples: db.InitializedRelation(tAttrs, tPartRel), Lock: &sync.Mutex{}}
 	tPartial.SetBag(tAttrs)
 
-	bPartRel := []Tuple{{4, 1}, {3, 2}, {5, 4}}
-	bPartial := &Node{ID: 6, Tuples: InitializedRelation(bAttrs, bPartRel), Lock: &sync.Mutex{}}
+	bPartRel := []db.Tuple{{4, 1}, {3, 2}, {5, 4}}
+	bPartial := &Node{ID: 6, Tuples: db.InitializedRelation(bAttrs, bPartRel), Lock: &sync.Mutex{}}
 	bPartial.SetBag(bAttrs)
 
 	dPartial.AddChild(rPartial)
@@ -325,28 +312,28 @@ func test2Data() (*Node, *Node, *Node, []ctr.Solution) {
 	aPartial.AddChild(bPartial)
 
 	//creating output
-	dOutRel := []Tuple{{3, 8}}
-	dOutput := &Node{ID: 1, Tuples: InitializedRelation(dAttrs, dOutRel), Lock: &sync.Mutex{}}
+	dOutRel := []db.Tuple{{3, 8}}
+	dOutput := &Node{ID: 1, Tuples: db.InitializedRelation(dAttrs, dOutRel), Lock: &sync.Mutex{}}
 	dOutput.SetBag(dAttrs)
 
-	rOutRel := []Tuple{{3, 8, 9}, {3, 8, 3}}
-	rOutput := &Node{ID: 2, Tuples: InitializedRelation(rAttrs, rOutRel), Lock: &sync.Mutex{}}
+	rOutRel := []db.Tuple{{3, 8, 9}, {3, 8, 3}}
+	rOutput := &Node{ID: 2, Tuples: db.InitializedRelation(rAttrs, rOutRel), Lock: &sync.Mutex{}}
 	rOutput.SetBag(rAttrs)
 
-	aOutRel := []Tuple{{8, 4}}
-	aOutput := &Node{ID: 5, Tuples: InitializedRelation(aAttrs, aOutRel), Lock: &sync.Mutex{}}
+	aOutRel := []db.Tuple{{8, 4}}
+	aOutput := &Node{ID: 5, Tuples: db.InitializedRelation(aAttrs, aOutRel), Lock: &sync.Mutex{}}
 	aOutput.SetBag(aAttrs)
 
-	sOutRel := []Tuple{{8, 3, 8}, {8, 9, 4}}
-	sOutput := &Node{ID: 3, Tuples: InitializedRelation(sAttrs, sOutRel), Lock: &sync.Mutex{}}
+	sOutRel := []db.Tuple{{8, 3, 8}, {8, 9, 4}}
+	sOutput := &Node{ID: 3, Tuples: db.InitializedRelation(sAttrs, sOutRel), Lock: &sync.Mutex{}}
 	sOutput.SetBag(sAttrs)
 
-	tOutRel := []Tuple{{9, 8}}
-	tOutput := &Node{ID: 4, Tuples: InitializedRelation(tAttrs, tOutRel), Lock: &sync.Mutex{}}
+	tOutRel := []db.Tuple{{9, 8}}
+	tOutput := &Node{ID: 4, Tuples: db.InitializedRelation(tAttrs, tOutRel), Lock: &sync.Mutex{}}
 	tOutput.SetBag(tAttrs)
 
-	bOutRel := []Tuple{{4, 1}}
-	bOutput := &Node{ID: 6, Tuples: InitializedRelation(bAttrs, bOutRel), Lock: &sync.Mutex{}}
+	bOutRel := []db.Tuple{{4, 1}}
+	bOutput := &Node{ID: 6, Tuples: db.InitializedRelation(bAttrs, bOutRel), Lock: &sync.Mutex{}}
 	bOutput.SetBag(bAttrs)
 
 	dOutput.AddChild(rOutput)
@@ -376,5 +363,34 @@ func test2Data() (*Node, *Node, *Node, []ctr.Solution) {
 		"Z": 8,
 	}
 
-	return dInput, dPartial, dOutput, []ctr.Solution{s1, s2}
+	return dInput, dPartial, dOutput, []csp.Solution{s1, s2}
+}
+
+func test3Data() *Node {
+	//creating input
+	dAttrs := []string{"Y", "P"}
+	dRel := []db.Tuple{{3, 8}, {3, 7}, {5, 7}, {6, 7}}
+	dInput := &Node{ID: 1, Tuples: db.InitializedRelation(dAttrs, dRel), Lock: &sync.Mutex{}}
+	dInput.SetBag(dAttrs)
+
+	rAttrs := []string{"Y", "Z", "U"}
+	rRel := []db.Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
+	rInput := &Node{ID: 2, Tuples: db.InitializedRelation(rAttrs, rRel), Lock: &sync.Mutex{}}
+	rInput.SetBag(rAttrs)
+
+	sAttrs := []string{"Z", "U", "W"}
+	sRel := []db.Tuple{{3, 8, 9}, {9, 3, 8}, {8, 3, 8}, {3, 8, 4}, {3, 8, 3}, {8, 9, 4}, {9, 4, 7}}
+	sInput := &Node{ID: 3, Tuples: db.InitializedRelation(sAttrs, sRel), Lock: &sync.Mutex{}}
+	sInput.SetBag(sAttrs)
+
+	tAttrs := []string{"V", "Z"}
+	tRel := []db.Tuple{{9, 7}, {9, 6}, {9, 5}}
+	tInput := &Node{ID: 4, Tuples: db.InitializedRelation(tAttrs, tRel), Lock: &sync.Mutex{}}
+	tInput.SetBag(tAttrs)
+
+	dInput.AddChild(rInput)
+	rInput.AddChild(sInput)
+	rInput.AddChild(tInput)
+
+	return dInput
 }

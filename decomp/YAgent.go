@@ -6,7 +6,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/dmlongo/callidus/ctr"
+	"github.com/dmlongo/callidus/csp"
+	"github.com/dmlongo/callidus/db"
 )
 
 // Message to be processed by YAgents
@@ -23,7 +24,7 @@ type startMsg struct{}
 func (msg *startMsg) Content() interface{} { return nil }
 
 type semijoinMsg struct {
-	rel Relation
+	rel db.Relation
 }
 
 func (msg *semijoinMsg) Content() interface{} {
@@ -31,7 +32,7 @@ func (msg *semijoinMsg) Content() interface{} {
 }
 
 type selectMsg struct {
-	c *Condition
+	c *db.Condition
 }
 
 func (msg *selectMsg) Content() interface{} {
@@ -39,7 +40,7 @@ func (msg *selectMsg) Content() interface{} {
 }
 
 type joinMsg struct {
-	rel Relation
+	rel db.Relation
 }
 
 func (msg *joinMsg) Content() interface{} {
@@ -57,7 +58,7 @@ const (
 
 type YAgent struct {
 	id     int
-	myRel  Relation
+	myRel  db.Relation
 	myNode *Node
 	state  int
 
@@ -105,12 +106,12 @@ func (ya *YAgent) Run() {
 			switch msg := msg.(type) {
 			case *semijoinMsg:
 				fmt.Println("Agent", ya.id, "is semijoining from down.")
-				othRel := msg.Content().(Relation)
-				ya.myRel, _ = Semijoin(ya.myRel, othRel)
+				othRel := msg.Content().(db.Relation)
+				ya.myRel, _ = db.Semijoin(ya.myRel, othRel)
 				cnt++
 			case *selectMsg:
-				cond := msg.Content().(Condition)
-				ya.myRel, _ = Select(ya.myRel, cond)
+				cond := msg.Content().(db.Condition)
+				ya.myRel, _ = db.Select(ya.myRel, cond)
 				cnt++
 			}
 			if ya.myRel.Empty() {
@@ -130,11 +131,11 @@ func (ya *YAgent) Run() {
 			switch msg := msg.(type) {
 			case *semijoinMsg:
 				fmt.Println("Agent", ya.id, "is semijoining from up.")
-				othRel := msg.Content().(Relation)
-				ya.myRel, _ = Semijoin(ya.myRel, othRel)
+				othRel := msg.Content().(db.Relation)
+				ya.myRel, _ = db.Semijoin(ya.myRel, othRel)
 			case *selectMsg:
-				cond := msg.Content().(Condition)
-				ya.myRel, _ = Select(ya.myRel, cond)
+				cond := msg.Content().(db.Condition)
+				ya.myRel, _ = db.Select(ya.myRel, cond)
 			}
 			ya.childrenW <- &semijoinMsg{rel: ya.myRel} // TODO could be filter
 			ya.state = phase3
@@ -142,8 +143,8 @@ func (ya *YAgent) Run() {
 			switch msg := msg.(type) {
 			case *joinMsg:
 				fmt.Println("Agent", ya.id, "is joining.")
-				othRel := msg.Content().(Relation)
-				ya.myRel = Join(ya.myRel, othRel)
+				othRel := msg.Content().(db.Relation)
+				ya.myRel = db.Join(ya.myRel, othRel)
 				cnt++
 			}
 			if cnt == len(ya.myNode.Children) {
@@ -337,7 +338,7 @@ func (yp *YPipeline) Reduce() error {
 	return nil
 }
 
-func (yp *YPipeline) All() ([]ctr.Solution, error) { // TODO check with the new architecture
+func (yp *YPipeline) All() ([]csp.Solution, error) { // TODO check with the new architecture
 	if yp.state != phase1 {
 		return nil, errors.New("Illegal state: " + strconv.Itoa(yp.state))
 	}
@@ -346,9 +347,9 @@ func (yp *YPipeline) All() ([]ctr.Solution, error) { // TODO check with the new 
 
 	msg := <-yp.result
 	if msg, ok := msg.(*joinMsg); ok {
-		rel := msg.Content().(Relation)
+		rel := msg.Content().(db.Relation)
 		yp.state = finished
-		return ToSolutions(rel), nil
+		return db.RelToSolutions(rel), nil
 	} else {
 		yp.state = crashed
 		return nil, errors.New("Unexpected message: " + String(msg))
@@ -366,6 +367,6 @@ func YMCAFullReduce() error {
 	return ypipe.Reduce()
 }
 
-func YMCASols() ([]ctr.Solution, error) {
+func YMCASols() ([]csp.Solution, error) {
 	return ypipe.All()
 }

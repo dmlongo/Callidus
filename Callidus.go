@@ -11,12 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dmlongo/callidus/ctr"
+	"github.com/dmlongo/callidus/csp"
+	"github.com/dmlongo/callidus/db"
 	"github.com/dmlongo/callidus/decomp"
 	"github.com/dmlongo/callidus/ext"
 )
 
-var csp, ht, out string
+var cspIn, ht, out string
 var decompTime string
 var subSeq, ySeq bool
 var htDebug, tabDebug, subDebug, memDebug, solDebug bool
@@ -25,7 +26,7 @@ var all bool
 
 var start time.Time
 var durs []time.Duration
-var solutions []ctr.Solution
+var solutions []csp.Solution
 var numSols int
 
 const wrkdir = "wrkdir"
@@ -43,7 +44,7 @@ func main() {
 
 	fmt.Print("Creating hypergraph... ")
 	startConversion := time.Now()
-	hypergraph := ext.Convert(csp, baseDir)
+	hypergraph := ext.Convert(cspIn, baseDir)
 	durConversion := time.Since(startConversion)
 	fmt.Println("done in", durConversion)
 	durs = append(durs, durConversion)
@@ -88,7 +89,7 @@ func main() {
 	domFile := baseDir + cspName + ".dom"
 	domains = ext.ParseDomains(domFile)
 
-	var constraints map[string]ctr.Constraint
+	var constraints map[string]csp.Constraint
 	ctrFile := baseDir + cspName + ".ctr"
 	constraints = ext.ParseConstraints(ctrFile)
 
@@ -133,7 +134,7 @@ func main() {
 		}
 		for _, node := range tree {
 			tableFile := tablesFolder + "sub" + strconv.Itoa(node.ID) + ".tab"
-			ext.CreateSolutionTable(tableFile, node)
+			db.RelToFile(tableFile, node.Tuples)
 		}
 	}
 
@@ -193,7 +194,7 @@ func main() {
 		fmt.Print("Checking ", numSols, " solutions... ")
 		startCheckSol := time.Now()
 		for _, sol := range solutions {
-			if err, ok := ext.CheckSolution(csp, sol); !ok {
+			if err, ok := csp.CheckSolution(cspIn, sol); !ok {
 				panic(fmt.Sprintf("%v is not a solution: %v", sol, err))
 			}
 		}
@@ -211,11 +212,11 @@ func printOutput(sat bool) {
 
 	if !all {
 		if !sat {
-			fmt.Println(csp, "has no solutions")
+			fmt.Println(cspIn, "has no solutions")
 		} else {
-			fmt.Println(csp, "has at least one solution")
+			fmt.Println(cspIn, "has at least one solution")
 		}
-		fmt.Println("Callidus solved", csp, "in", durCallidus)
+		fmt.Println("Callidus solved", cspIn, "in", durCallidus)
 	} else {
 		fmt.Println("Callidus found", numSols, "solutions in", durCallidus)
 	}
@@ -252,7 +253,7 @@ func setFlags() {
 	flagSet := flag.NewFlagSet("", flag.ContinueOnError)
 	flagSet.SetOutput(ioutil.Discard) //todo: see what happens without this line
 
-	flagSet.StringVar(&csp, "csp", "", "Path to the CSP to solve (XCSP3 format)")
+	flagSet.StringVar(&cspIn, "csp", "", "Path to the CSP to solve (XCSP3 format)")
 	flagSet.StringVar(&ht, "ht", "", "Path to a decomposition of the CSP to solve (GML format)")
 	flagSet.StringVar(&out, "out", "", "Save the solutions of the CSP into the specified file")
 	flagSet.StringVar(&decompTime, "decompTime", "3600", "Set a timeout (seconds) for computing a decomposition of the CSP")
@@ -274,7 +275,7 @@ func setFlags() {
 		fmt.Print("Parse Error:\n", parseError.Error(), "\n\n")
 	}
 
-	if parseError != nil || csp == "" {
+	if parseError != nil || cspIn == "" {
 		out := "Usage of Callidus (https://github.com/dmlongo/Callidus)\n"
 		flagSet.VisitAll(func(f *flag.Flag) {
 			if f.Name != "csp" {
@@ -311,7 +312,7 @@ func setFlags() {
 	}
 
 	re := regexp.MustCompile(`.*/`)
-	cspName = re.ReplaceAllString(csp, "")
+	cspName = re.ReplaceAllString(cspIn, "")
 	re = regexp.MustCompile(`\..*`)
 	cspDir = re.ReplaceAllString(cspName, "")
 	baseDir = wrkdir + "/" + cspDir + "/"

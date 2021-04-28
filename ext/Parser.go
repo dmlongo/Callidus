@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dmlongo/callidus/ctr"
+	"github.com/dmlongo/callidus/csp"
 	"github.com/dmlongo/callidus/decomp"
 	files "github.com/dmlongo/callidus/ext/files"
 )
@@ -151,7 +151,7 @@ func ParseDecomp(htRaw *string) (*decomp.Node, []*decomp.Node) {
 }
 
 // ParseConstraints of a CSP
-func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
+func ParseConstraints(ctrFile string) map[string]csp.Constraint {
 	file, err := os.Open(ctrFile)
 	if err != nil {
 		panic(err)
@@ -163,7 +163,7 @@ func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
 	}()
 
 	reader := bufio.NewReader(file)
-	constraints := make(map[string]ctr.Constraint)
+	constraints := make(map[string]csp.Constraint)
 	numLines := 0
 	for {
 		line, eof := files.ReadLineCount(reader, &numLines)
@@ -172,23 +172,23 @@ func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
 		}
 
 		var name string
-		var constr ctr.Constraint
+		var constr csp.Constraint
 		switch line {
 		case "ExtensionCtr":
 			name, _ = files.ReadLineCount(reader, &numLines)
 			vars, _ := files.ReadLineCount(reader, &numLines)
 			ctype, _ := files.ReadLineCount(reader, &numLines)
 			tuples, _ := files.ReadLineCount(reader, &numLines)
-			constr = &ctr.ExtensionCtr{CName: name, Vars: vars, CType: ctype, Tuples: tuples}
+			constr = &csp.ExtensionCtr{CName: name, Vars: vars, CType: ctype, Tuples: tuples}
 		case "PrimitiveCtr":
 			name, _ = files.ReadLineCount(reader, &numLines)
 			vars, _ := files.ReadLineCount(reader, &numLines)
 			f, _ := files.ReadLineCount(reader, &numLines)
-			constr = &ctr.PrimitiveCtr{CName: name, Vars: vars, Function: f}
+			constr = &csp.PrimitiveCtr{CName: name, Vars: vars, Function: f}
 		case "AllDifferentCtr":
 			name, _ = files.ReadLineCount(reader, &numLines)
 			vars, _ := files.ReadLineCount(reader, &numLines)
-			constr = &ctr.AllDifferentCtr{CName: name, Vars: vars}
+			constr = &csp.AllDifferentCtr{CName: name, Vars: vars}
 		case "ElementCtr":
 			name, _ = files.ReadLineCount(reader, &numLines)
 			vars, _ := files.ReadLineCount(reader, &numLines)
@@ -197,13 +197,13 @@ func ParseConstraints(ctrFile string) map[string]ctr.Constraint {
 			index, _ := files.ReadLineCount(reader, &numLines)
 			rank, _ := files.ReadLineCount(reader, &numLines)
 			condition, _ := files.ReadLineCount(reader, &numLines)
-			constr = &ctr.ElementCtr{CName: name, Vars: vars, List: list, StartIndex: startIndex, Index: index, Rank: rank, Condition: condition}
+			constr = &csp.ElementCtr{CName: name, Vars: vars, List: list, StartIndex: startIndex, Index: index, Rank: rank, Condition: condition}
 		case "SumCtr":
 			name, _ = files.ReadLineCount(reader, &numLines)
 			vars, _ := files.ReadLineCount(reader, &numLines)
 			coeffs, _ := files.ReadLineCount(reader, &numLines)
 			condition, _ := files.ReadLineCount(reader, &numLines)
-			constr = &ctr.SumCtr{CName: name, Vars: vars, Coeffs: coeffs, Condition: condition}
+			constr = &csp.SumCtr{CName: name, Vars: vars, Coeffs: coeffs, Condition: condition}
 		default:
 			msg := ctrFile + ", line " + strconv.Itoa(numLines) + ": " + line + " not implemented yet"
 			panic(msg)
