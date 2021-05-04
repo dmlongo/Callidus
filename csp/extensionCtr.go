@@ -2,8 +2,8 @@ package csp
 
 import "strings"
 
-// ExtensionCtr represents an extensional constraint in XCSP
-type ExtensionCtr struct {
+// extensionCtr represents an extensional constraint in XCSP
+type extensionCtr struct {
 	CName   string
 	Vars    string
 	strVars []string
@@ -12,12 +12,12 @@ type ExtensionCtr struct {
 }
 
 // Name of this constraint
-func (c *ExtensionCtr) Name() string {
+func (c *extensionCtr) Name() string {
 	return c.CName
 }
 
 // Variables of this constraint
-func (c *ExtensionCtr) Variables() []string {
+func (c *extensionCtr) Variables() []string {
 	if c.strVars != nil {
 		return c.strVars
 	}
@@ -26,7 +26,7 @@ func (c *ExtensionCtr) Variables() []string {
 }
 
 // ToXCSP converts this constraint in the XCSP format
-func (c *ExtensionCtr) ToXCSP() []string {
+func (c *extensionCtr) ToXCSP() []string {
 	out := make([]string, 0, 4)
 	out = append(out, "<extension>")
 	out = append(out, "\t<list> "+c.Vars+" </list>")

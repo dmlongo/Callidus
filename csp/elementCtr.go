@@ -2,8 +2,8 @@ package csp
 
 import "strings"
 
-// ElementCtr represents an element constraint in XCSP
-type ElementCtr struct {
+// elementCtr represents an element constraint in XCSP
+type elementCtr struct {
 	CName      string
 	Vars       string
 	strVars    []string
@@ -15,12 +15,12 @@ type ElementCtr struct {
 }
 
 // Name of this constraint
-func (c *ElementCtr) Name() string {
+func (c *elementCtr) Name() string {
 	return c.CName
 }
 
 // Variables of this constraint
-func (c *ElementCtr) Variables() []string {
+func (c *elementCtr) Variables() []string {
 	if c.strVars != nil {
 		return c.strVars
 	}
@@ -29,7 +29,7 @@ func (c *ElementCtr) Variables() []string {
 }
 
 // ToXCSP converts this constraint in the XCSP format
-func (c *ElementCtr) ToXCSP() []string {
+func (c *elementCtr) ToXCSP() []string {
 	out := make([]string, 0, 5)
 	out = append(out, "<element>")
 	out = append(out, "\t<list startIndex=\""+c.StartIndex+"\"> "+c.List+" </list>")

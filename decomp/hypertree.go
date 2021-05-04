@@ -24,15 +24,15 @@ type Node struct {
 	cover    []string
 	coverSet map[string]bool
 
-	Tuples db.Relation
-	Lock   *sync.Mutex
+	Table db.Relation
+	Lock  *sync.Mutex
 }
 
 func NewNode(id int, vars []string, edges []string) *Node {
 	n := Node{ID: id}
 	n.SetBag(vars)
 	n.SetCover(edges)
-	n.Tuples = db.NewRelation(vars)
+	n.Table = db.NewRelation(vars)
 	n.Lock = &sync.Mutex{}
 	return &n
 }
@@ -131,7 +131,7 @@ func subset(s []string, p map[string]int) bool {
 
 func PrintTreeRelations(n *Node) {
 	fmt.Println("Rel-" + strconv.Itoa(n.ID))
-	fmt.Println(db.RelToString(n.Tuples))
+	fmt.Println(db.RelToString(n.Table))
 	fmt.Println()
 	for _, c := range n.Children {
 		PrintTreeRelations(c)

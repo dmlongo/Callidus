@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"sync"
 
 	"github.com/dmlongo/callidus/csp"
 	"github.com/dmlongo/callidus/db"
@@ -22,6 +21,12 @@ func String(msg Message) string {
 type startMsg struct{}
 
 func (msg *startMsg) Content() interface{} { return nil }
+
+type stopMsg struct {
+	outcome bool
+}
+
+func (msg *stopMsg) Content() interface{} { return msg.outcome }
 
 type semijoinMsg struct {
 	rel db.Relation
@@ -49,9 +54,9 @@ func (msg *joinMsg) Content() interface{} {
 
 const (
 	waiting = iota
-	phase1
-	phase2
-	phase3
+	computed
+	reduced
+	fullyReduced
 	finished
 	crashed
 )
@@ -98,11 +103,11 @@ func (ya *YAgent) Run() {
 			}
 			if len(ya.myNode.Children) == 0 {
 				ya.parentW <- &semijoinMsg{rel: ya.myRel} // TODO could be filter
-				ya.state = phase2
+				ya.state = reduced
 			} else {
-				ya.state = phase1
+				ya.state = computed
 			}
-		case phase1:
+		case computed:
 			switch msg := msg.(type) {
 			case *semijoinMsg:
 				fmt.Println("Agent", ya.id, "is semijoining from down.")
@@ -125,9 +130,9 @@ func (ya *YAgent) Run() {
 			if cnt == len(ya.myNode.Children) {
 				cnt = 0
 				ya.parentW <- &semijoinMsg{rel: ya.myRel} // TODO could be filter
-				ya.state = phase2
+				ya.state = reduced
 			}
-		case phase2:
+		case reduced:
 			switch msg := msg.(type) {
 			case *semijoinMsg:
 				fmt.Println("Agent", ya.id, "is semijoining from up.")
@@ -138,8 +143,8 @@ func (ya *YAgent) Run() {
 				ya.myRel, _ = db.Select(ya.myRel, cond)
 			}
 			ya.childrenW <- &semijoinMsg{rel: ya.myRel} // TODO could be filter
-			ya.state = phase3
-		case phase3:
+			ya.state = fullyReduced
+		case fullyReduced:
 			switch msg := msg.(type) {
 			case *joinMsg:
 				fmt.Println("Agent", ya.id, "is joining.")
@@ -200,7 +205,7 @@ func setup(root *Node) (toRoot chan Message, fromRoot <-chan Message, toLeaves c
 
 	var toVisit []*Node
 	var toSetup []*YAgent
-	rootAgent := &YAgent{id: root.ID, myRel: root.Tuples, myNode: root, state: waiting, inbox: toRoot, parentW: fromRootOutside, masterW: signal, stop: stop}
+	rootAgent := &YAgent{id: root.ID, myRel: root.Table, myNode: root, state: waiting, inbox: toRoot, parentW: fromRootOutside, masterW: signal, stop: stop}
 	toVisit = append(toVisit, root)
 	toSetup = append(toSetup, rootAgent)
 	var parent *Node
@@ -217,7 +222,7 @@ func setup(root *Node) (toRoot chan Message, fromRoot <-chan Message, toLeaves c
 			for _, child := range parent.Children {
 				toChild := make(chan Message)
 				fromChild := make(chan Message)
-				childAgent := &YAgent{id: child.ID, myRel: child.Tuples, myNode: child, state: waiting, inbox: toChild, parentW: fromChild, masterW: signal, stop: stop}
+				childAgent := &YAgent{id: child.ID, myRel: child.Table, myNode: child, state: waiting, inbox: toChild, parentW: fromChild, masterW: signal, stop: stop}
 				toChildren = append(toChildren, toChild)
 				fromChildren = append(fromChildren, fromChild)
 
@@ -227,7 +232,7 @@ func setup(root *Node) (toRoot chan Message, fromRoot <-chan Message, toLeaves c
 			fromChildren = append(fromChildren, fromMaster)
 			fromChildren = append(fromChildren, parAgent.inbox)
 			parAgent.inbox = merge(stop, fromChildren...)
-			parAgent.childrenW = splitCopy(toChildren...)
+			parAgent.childrenW = multicast(toChildren...)
 		} else {
 			fromOutside := make(chan Message)
 			parAgent.inbox = merge(stop, parAgent.inbox, fromOutside, fromMaster)
@@ -240,53 +245,11 @@ func setup(root *Node) (toRoot chan Message, fromRoot <-chan Message, toLeaves c
 		all = append(all, fromMaster)
 	}
 
-	toLeaves = splitCopy(leavesW...)
-	broadcast = splitCopy(all...)
+	toLeaves = multicast(leavesW...)
+	broadcast = multicast(all...)
 	leavesR = append(leavesR, fromRootOutside)
 	fromRoot = merge(stop, leavesR...)
 	return
-}
-
-func merge(done <-chan bool, cs ...<-chan Message) <-chan Message {
-	var wg sync.WaitGroup
-	out := make(chan Message)
-
-	wg.Add(len(cs))
-	for _, c := range cs {
-		go func(c <-chan Message) {
-			defer wg.Done()
-			for msg := range c {
-				select {
-				case out <- msg:
-				case <-done:
-					return
-				}
-			}
-		}(c)
-	}
-
-	go func() {
-		wg.Wait()
-		close(out)
-	}()
-	return out
-}
-
-func splitCopy(cs ...chan<- Message) chan<- Message {
-	in := make(chan Message)
-
-	go func() {
-		for msg := range in {
-			for _, c := range cs {
-				go func(c chan<- Message) { c <- msg }(c)
-			}
-		}
-		for _, c := range cs {
-			close(c)
-		}
-	}()
-
-	return in
 }
 
 func (yp *YPipeline) Sat() (bool, error) {
@@ -302,7 +265,7 @@ func (yp *YPipeline) Sat() (bool, error) {
 	select {
 	case msg := <-yp.result:
 		if msg, ok := msg.(*semijoinMsg); ok && msg.Content() != nil {
-			yp.state = phase1
+			yp.state = computed
 			return true, nil
 		} else {
 			yp.state = crashed
@@ -318,7 +281,7 @@ func (yp *YPipeline) Sat() (bool, error) {
 // TODO func (yp *YPipeline) One() (ctr.Solution, error) - it gives you one solution
 
 func (yp *YPipeline) Reduce() error {
-	if yp.state != phase1 {
+	if yp.state != computed {
 		return errors.New("Illegal state: " + strconv.Itoa(yp.state))
 	}
 
@@ -339,7 +302,7 @@ func (yp *YPipeline) Reduce() error {
 }
 
 func (yp *YPipeline) All() ([]csp.Solution, error) { // TODO check with the new architecture
-	if yp.state != phase1 {
+	if yp.state != computed {
 		return nil, errors.New("Illegal state: " + strconv.Itoa(yp.state))
 	}
 

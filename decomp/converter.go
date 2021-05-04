@@ -1,4 +1,4 @@
-package ext
+package decomp
 
 import (
 	"bufio"
@@ -7,8 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-
-	"github.com/dmlongo/callidus/decomp"
 )
 
 var hgtools string
@@ -26,7 +24,7 @@ func init() {
 }
 
 // Convert a CSP into a hypergraph
-func Convert(cspPath string, outDir string) decomp.Hypergraph {
+func Convert(cspPath string, outDir string) Hypergraph {
 	// TODO add logging
 	cmd := exec.Command("java", "-jar", hgtools, "-convert", "-xcsp", "-print", "-out", outDir, cspPath)
 	var stderr bytes.Buffer
@@ -38,7 +36,7 @@ func Convert(cspPath string, outDir string) decomp.Hypergraph {
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	}
-	hg := decomp.BuildHypergraph(bufio.NewReader(stdout))
+	hg := BuildHypergraph(bufio.NewReader(stdout))
 	if err := cmd.Wait(); err != nil {
 		panic(fmt.Sprintf("hgtools failed: %v: %s", err, stderr.String()))
 	}

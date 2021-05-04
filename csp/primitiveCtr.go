@@ -2,8 +2,8 @@ package csp
 
 import "strings"
 
-// PrimitiveCtr represents a primitive constraint in XCSP
-type PrimitiveCtr struct {
+// primitiveCtr represents a primitive constraint in XCSP
+type primitiveCtr struct {
 	CName    string
 	Vars     string
 	strVars  []string
@@ -11,12 +11,12 @@ type PrimitiveCtr struct {
 }
 
 // Name of this constraint
-func (c *PrimitiveCtr) Name() string {
+func (c *primitiveCtr) Name() string {
 	return c.CName
 }
 
 // Variables of this constraint
-func (c *PrimitiveCtr) Variables() []string {
+func (c *primitiveCtr) Variables() []string {
 	if c.strVars != nil {
 		return c.strVars
 	}
@@ -25,6 +25,6 @@ func (c *PrimitiveCtr) Variables() []string {
 }
 
 // ToXCSP converts this constraint in the XCSP format
-func (c *PrimitiveCtr) ToXCSP() []string {
+func (c *primitiveCtr) ToXCSP() []string {
 	return []string{"<intension> " + c.Function + " </intension>"}
 }

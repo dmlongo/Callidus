@@ -17,8 +17,8 @@ func YannakakisSeq(root *Node) (*Node, bool) {
 		if _, sat := YannakakisSeq(child); !sat {
 			return nil, false
 		}
-		db.Semijoin(root.Tuples, child.Tuples)
-		if root.Tuples.Empty() {
+		db.Semijoin(root.Table, child.Table)
+		if root.Table.Empty() {
 			return nil, false
 		}
 	}
@@ -83,8 +83,8 @@ func YannakakisPar(root *Node) (*Node, bool) {
 				jobs <- &job{
 					id:    curr.Parent.ID,
 					lock:  curr.Parent.Lock,
-					left:  curr.Parent.Tuples,
-					right: curr.Tuples,
+					left:  curr.Parent.Table,
+					right: curr.Table,
 				}
 			} else {
 				deps[curr.ID] = numChildren
@@ -107,8 +107,8 @@ func YannakakisPar(root *Node) (*Node, bool) {
 						jobs <- &job{
 							id:    parent.Parent.ID,
 							lock:  parent.Parent.Lock,
-							left:  parent.Parent.Tuples,
-							right: parent.Tuples,
+							left:  parent.Parent.Table,
+							right: parent.Table,
 						}
 					}
 				}
@@ -154,7 +154,7 @@ func YannakakisPar(root *Node) (*Node, bool) {
 func FullyReduceRelationsSeq(root *Node) *Node {
 	// top-down
 	for _, child := range root.Children {
-		db.Semijoin(child.Tuples, root.Tuples)
+		db.Semijoin(child.Table, root.Table)
 		FullyReduceRelationsSeq(child)
 	}
 	return root
@@ -165,7 +165,7 @@ func FullyReduceRelationsPar(root *Node) *Node {
 	var wg *sync.WaitGroup = &sync.WaitGroup{}
 	for _, child := range root.Children {
 		wg.Add(1)
-		db.Semijoin(child.Tuples, root.Tuples)
+		db.Semijoin(child.Table, root.Table)
 		go func(c *Node) {
 			FullyReduceRelationsPar(c)
 			wg.Done()
@@ -191,13 +191,13 @@ func computeBottomUpSeq(curr *Node) ([]string, db.Relation) {
 	for _, child := range curr.Children {
 		childBag, childTuples := computeBottomUpSeq(child)
 		child.SetBag(childBag)
-		child.Tuples = childTuples
+		child.Table = childTuples
 
-		currRel := db.Join(curr.Tuples, child.Tuples)
+		currRel := db.Join(curr.Table, child.Table)
 		curr.SetBag(currRel.Attributes())
-		curr.Tuples = currRel
+		curr.Table = currRel
 	}
-	return curr.bag, curr.Tuples
+	return curr.bag, curr.Table
 }
 
 // ComputeAllSolutionsPar from fully reduced relations in parallel
@@ -219,17 +219,17 @@ func computeBottomUpPar(curr *Node) ([]string, db.Relation) {
 			defer wg.Done()
 			childBag, childTuples := computeBottomUpPar(child)
 			child.SetBag(childBag)
-			child.Tuples = childTuples
+			child.Table = childTuples
 
 			curr.Lock.Lock()
-			currRel := db.Join(curr.Tuples, child.Tuples)
+			currRel := db.Join(curr.Table, child.Table)
 			curr.SetBag(currRel.Attributes())
-			curr.Tuples = currRel
+			curr.Table = currRel
 			curr.Lock.Unlock()
 
-			child.Tuples = nil
+			child.Table = nil
 		}(child)
 	}
 	wg.Wait()
-	return curr.bag, curr.Tuples
+	return curr.bag, curr.Table
 }

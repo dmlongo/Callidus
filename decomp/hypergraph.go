@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	files "github.com/dmlongo/callidus/ext/files"
+	"github.com/dmlongo/callidus/files"
 )
 
 // Edge represents a hyperedge in a hypergraph

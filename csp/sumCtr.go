@@ -2,8 +2,8 @@ package csp
 
 import "strings"
 
-// SumCtr represents a sum constraint in XCSP
-type SumCtr struct {
+// sumCtr represents a sum constraint in XCSP
+type sumCtr struct {
 	CName     string
 	Vars      string
 	strVars   []string
@@ -12,12 +12,12 @@ type SumCtr struct {
 }
 
 // Name of this constraint
-func (c *SumCtr) Name() string {
+func (c *sumCtr) Name() string {
 	return c.CName
 }
 
 // Variables of this constraint
-func (c *SumCtr) Variables() []string {
+func (c *sumCtr) Variables() []string {
 	if c.strVars != nil {
 		return c.strVars
 	}
@@ -26,7 +26,7 @@ func (c *SumCtr) Variables() []string {
 }
 
 // ToXCSP converts this constraint in the XCSP format
-func (c *SumCtr) ToXCSP() []string {
+func (c *sumCtr) ToXCSP() []string {
 	out := make([]string, 0, 5)
 	out = append(out, "<sum>")
 	out = append(out, "\t<list> "+c.Vars+" </list>")

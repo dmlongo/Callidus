@@ -15,7 +15,7 @@ import (
 
 	"github.com/dmlongo/callidus/csp"
 	"github.com/dmlongo/callidus/db"
-	files "github.com/dmlongo/callidus/ext/files"
+	"github.com/dmlongo/callidus/files"
 )
 
 var nacre string
@@ -36,11 +36,11 @@ var listRegex = regexp.MustCompile(`.*<list>(.*)</list>.*`)
 var valuesRegex = regexp.MustCompile(`.*<values>(.*)</values>.*`)
 
 // SolveSubCspSeq solve the CSPs associated to a hypertree sequentially
-func SolveSubCspSeq(nodes []*Node, domains map[string]string, constraints map[string]csp.Constraint, baseDir string) bool {
+func SolveSubCspSeq(ht Hypertree, domains map[string]string, constraints map[string]csp.Constraint, baseDir string) bool {
 	subCspFolder := files.MakeDir(baseDir + "subs/")
 
 	sat := true
-	for _, node := range nodes {
+	for _, node := range ht {
 		nodeCtrs, nodeVars := filterCtrsVars(node, constraints, domains)
 		subFile := subCspFolder + "sub" + strconv.Itoa(node.ID) + ".xml"
 		csp.CreateXCSPInstance(nodeCtrs, nodeVars, subFile)
@@ -80,7 +80,7 @@ func readTuples(reader *bufio.Reader, cspFile string, node *Node) bool {
 		}
 		if strings.HasPrefix(line, "v") {
 			tup := makeTuple(line, cspFile, node.bagSet)
-			if _, added := node.Tuples.AddTuple(tup); !added {
+			if _, added := node.Table.AddTuple(tup); !added {
 				panic(fmt.Sprintf("node %v, %s: Could not add tuple %v", node.ID, cspFile, tup))
 			}
 			solFound = true
@@ -118,12 +118,12 @@ func makeTuple(line string, cspFile string, bag map[string]int) db.Tuple {
 }
 
 // SolveSubCspPar solve the CSPs associated to a hypertree in parallel
-func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[string]csp.Constraint, baseDir string) bool {
+func SolveSubCspPar(ht Hypertree, domains map[string]string, constraints map[string]csp.Constraint, baseDir string) bool {
 	subCspFolder := files.MakeDir(baseDir + "subs/")
 
 	jobs := make(chan *Node)
 	go func() {
-		for _, node := range nodes {
+		for _, node := range ht {
 			jobs <- node
 		}
 		close(jobs)
@@ -132,7 +132,7 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 	sat := make(chan bool)
 	quit := make(chan bool)
 	defer close(quit)
-	numNodes := len(nodes)
+	numNodes := len(ht)
 	numWorkers := runtime.NumCPU()
 	var wg sync.WaitGroup
 	wg.Add(numNodes)
@@ -155,7 +155,7 @@ func SolveSubCspPar(nodes []*Node, domains map[string]string, constraints map[st
 		close(sat)
 	}()
 
-	for i := 0; i < len(nodes); i++ {
+	for i := 0; i < len(ht); i++ {
 		if !<-sat {
 			return false
 		}
@@ -187,8 +187,8 @@ func solveCSPPar(cspFile string, node *Node, sat chan<- bool, quit <-chan bool) 
 			return
 		default:
 			res = true
-			if _, added := node.Tuples.AddTuple(tup); !added {
-				panic(fmt.Sprintf("node %v, %s: Tuple arity does not match with relation arity %v", node.ID, cspFile, len(node.Tuples.Attributes())))
+			if _, added := node.Table.AddTuple(tup); !added {
+				panic(fmt.Sprintf("node %v, %s: Tuple arity does not match with relation arity %v", node.ID, cspFile, len(node.Table.Attributes())))
 			}
 		}
 	}

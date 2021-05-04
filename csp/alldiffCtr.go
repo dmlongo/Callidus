@@ -2,20 +2,20 @@ package csp
 
 import "strings"
 
-// AllDifferentCtr represents an allDifferent constraint in XCSP
-type AllDifferentCtr struct {
+// allDifferentCtr represents an allDifferent constraint in XCSP
+type allDifferentCtr struct {
 	CName   string
 	Vars    string
 	strVars []string
 }
 
 // Name of this constraint
-func (c *AllDifferentCtr) Name() string {
+func (c *allDifferentCtr) Name() string {
 	return c.CName
 }
 
 // Variables of this constraint
-func (c *AllDifferentCtr) Variables() []string {
+func (c *allDifferentCtr) Variables() []string {
 	if c.strVars != nil {
 		return c.strVars
 	}
@@ -24,6 +24,6 @@ func (c *AllDifferentCtr) Variables() []string {
 }
 
 // ToXCSP converts this constraint in the XCSP format
-func (c *AllDifferentCtr) ToXCSP() []string {
+func (c *allDifferentCtr) ToXCSP() []string {
 	return []string{"<allDifferent> " + c.Vars + " </allDifferent>"}
 }
