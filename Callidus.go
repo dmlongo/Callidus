@@ -157,6 +157,7 @@ func main() {
 		return
 	} else {
 		solutions = append(solutions, sol)
+		printOutput(satisfiable) // TODO remove
 	}
 
 	if printRel {

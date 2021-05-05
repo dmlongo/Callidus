@@ -51,6 +51,7 @@ func (y *seqY) Solve() (csp.Solution, bool) {
 		if y.reduce(y.tree) {
 			// TODO backtrack
 			// measure time diff of back with und ohne fullyReduce
+			y.sol = csp.Solution{"": 0}
 		} else {
 			y.sol = csp.Solution{}
 		}
@@ -121,6 +122,7 @@ func (y *parY) Solve() (csp.Solution, bool) {
 		if y.reduce(y.tree) {
 			// TODO backtrack
 			// measure time diff of back with und ohne fullyReduce
+			y.sol = csp.Solution{"": 0}
 		} else {
 			y.sol = csp.Solution{}
 		}
